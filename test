@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.kooon.0",
+    Title = "v1.lor.0",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -75,57 +75,81 @@ local locations = {
     { name = "Magma Village",  cframe = CFrame.new(-5248.27, 8.69, 8452.89) },
 }
 
-local tweenService = game:GetService("TweenService")
+local SelectedCFrame = nil
+local TPConnection = nil
 local player = game.Players.LocalPlayer
 
+-- استخراج اسامی برای Dropdown
+local locNames = {}
+for _, v in pairs(locations) do table.insert(locNames, v.name) end
 
-local function safeTeleport(targetCFrame)
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-    
-    local hrp = character.HumanoidRootPart
-    local distance = (targetCFrame.Position - hrp.Position).Magnitude
-    local speed = 250
-    local duration = distance / speed
-
-    local bv = Instance.new("BodyVelocity")
-    bv.Velocity = Vector3.new(0, 0, 0)
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Parent = hrp
-
-
-    local noclipLoop = game:GetService("RunService").Stepped:Connect(function()
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
+-- ۱. انتخاب مقصد
+TeleportSection:Dropdown({
+    Title = "انتخاب جزیره",
+    Values = locNames,
+    Callback = function(val)
+        for _, v in pairs(locations) do
+            if v.name == val then
+                SelectedCFrame = v.cframe
+                break
             end
         end
-    end)
+    end
+})
 
-    local tween = tweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-    
-    tween:Play()
-    
-    tween.Completed:Connect(function()
-        bv:Destroy()
-        noclipLoop:Disconnect()
+-- ۲. تاگل اجرا و توقف
+TeleportSection:Toggle({
+    Title = "شروع جابه‌جایی",
+    Value = false,
+    Callback = function(state)
+        _G.Teleporting = state
+        
+        if state then
+            if not SelectedCFrame then return end
+                        local char = player.Character
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+                        -- جلوگیری از سقوط و لرزش
+            local bv = Instance.new("BodyVelocity")
+            bv.Velocity = Vector3.new(0,0,0)
+            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            bv.Name = "TP_Stabilizer"
+            bv.Parent = hrp
 
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-            end        end
-    end)
-end
+            TPConnection = game:GetService("RunService").Heartbeat:Connect(function(dt)
+                if not _G.Teleporting or not hrp then
+                    if TPConnection then TPConnection:Disconnect() end
+                    if bv then bv:Destroy() end
+                    return
+                end
 
+                -- Noclip فعال در هر فریم
+                for _, part in pairs(char:GetDescendants()) do
+                    if part:IsA("BasePart") then part.CanCollide = false end
+                end
 
-for _, location in ipairs(locations) do
-    TeleportSection:Button({
-        Title = location.name,
-        Callback = function()
-            safeTeleport(location.cframe)
-        end,
-    })
-end
+                local dist = (SelectedCFrame.Position - hrp.Position).Magnitude
+                if dist > 5 then
+                    local speed = 250
+                    hrp.CFrame = hrp.CFrame + (SelectedCFrame.Position - hrp.Position).Unit * speed * dt
+                else
+                    hrp.CFrame = SelectedCFrame
+                    _G.Teleporting = false
+                    if TPConnection then TPConnection:Disconnect() end
+                    if bv then bv:Destroy() end
+                end
+            end)
+        else
+            -- توقف آنی
+            if TPConnection then TPConnection:Disconnect() end
+            if player.Character.HumanoidRootPart:FindFirstChild("TP_Stabilizer") then
+                player.Character.HumanoidRootPart.TP_Stabilizer:Destroy()
+            end
+            for _, part in pairs(player.Character:GetDescendants()) do
+                if part:IsA("BasePart") then part.CanCollide = true end
+            end
+        end
+    end
+})```
 
 
 local WaterPart = Instance.new("Part")
