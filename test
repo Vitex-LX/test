@@ -3,7 +3,7 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub | v1.0.0",
+    Title  = "Vitex Hub | v2.0.0",
     Icon   = "snake",
     Author = "by Vitex",
     Theme  = "Dark",
@@ -16,5 +16,6 @@ local dd = Window:Tab({
 })
 
 Tab:Select()
+
 
 
