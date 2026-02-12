@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.1.0",
+    Title = "v1.2.0",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0, -- from 0 to 13
@@ -81,33 +81,47 @@ for _, location in ipairs(locations) do
     TeleportSection:Button({
         Title = location.name,
         Callback = function()
-            local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
-            
-            -- اول بره بالا
-            tweenService:Create(hrp, TweenInfo.new(1, Enum.EasingStyle.Quad), {
-                CFrame = hrp.CFrame * CFrame.new(0, 50, 0)
-            }):Play()
-            
-            task.wait(1)
-            
-            -- بعد بره مقصد (ولی 50 متر بالاتر)
-            tweenService:Create(hrp, TweenInfo.new(25, Enum.EasingStyle.Linear), {
-                CFrame = location.cframe * CFrame.new(0, 50, 0)
-            }):Play()
-            
-            task.wait(10)
-            
-            -- بعد بیاد پایین
-            tweenService:Create(hrp, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+            local character = game.Players.LocalPlayer.Character
+            local hrp = character.HumanoidRootPart
+            local humanoid = character.Humanoid
+
+            -- فریز کردن کاراکتر
+            humanoid.WalkSpeed = 0
+            humanoid.JumpPower = 0
+            hrp.Anchored = true
+
+            -- بره بالا
+            local upTween = tweenService:Create(hrp, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.Out), {
+                CFrame = hrp.CFrame + Vector3.new(0, 60, 0)
+            })
+            upTween:Play()
+            upTween.Completed:Wait()
+
+            -- بره مقصد
+            local moveTween = tweenService:Create(hrp, TweenInfo.new(6, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
+                CFrame = location.cframe + Vector3.new(0, 60, 0)
+            })
+            moveTween:Play()
+            moveTween.Completed:Wait()
+
+            -- بیاد پایین
+            local downTween = tweenService:Create(hrp, TweenInfo.new(1.5, Enum.EasingStyle.Sine, Enum.EasingDirection.In), {
                 CFrame = location.cframe
-            }):Play()
+            })
+            downTween:Play()
+            downTween.Completed:Wait()
+
+            -- آزاد کردن کاراکتر
+            hrp.Anchored = false
+            humanoid.WalkSpeed = 16
+            humanoid.JumpPower = 50
         end,
     })
 end
 
 
 local WaterWalk = Practical:Toggle({
-    Title = "راه رفتن روی آب",
+    Title = "Walk on Water",
     Value = false,
     Callback = function(value)
         local player = game.Players.LocalPlayer
@@ -116,27 +130,38 @@ local WaterWalk = Practical:Toggle({
         local humanoid = character:WaitForChild("Humanoid")
 
         if value then
-            -- غیرفعال کردن حالت شنا
             humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
 
-            -- نگه داشتن Y روی سطح آب
             local bp = Instance.new("BodyPosition")
             bp.Name = "WaterWalkBP"
             bp.MaxForce = Vector3.new(0, math.huge, 0)
-            bp.D = 1000
-            bp.P = 10000
+            bp.D = 500
+            bp.P = 5000
             bp.Parent = hrp
 
-            -- آپدیت مداوم Y
             task.spawn(function()
                 while value and bp and bp.Parent do
-                    bp.Position = Vector3.new(hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
+                    -- هر فریم Y رو روی سطح آب (Y=0 یا هر ارتفاعی که آب هست) تنظیم کن
+                    local waterY = hrp.Position.Y
+                    
+                    -- چک کن زیر آب رفتی یا نه
+                    local rayDown = workspace:Raycast(
+                        hrp.Position,
+                        Vector3.new(0, -10, 0),
+                        RaycastParams.new()
+                    )
+                    
+                    if humanoid:GetState() == Enum.HumanoidStateType.Swimming then
+                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
+                        bp.Position = Vector3.new(hrp.Position.X, hrp.Position.Y + 3, hrp.Position.Z)
+                    else
+                        bp.MaxForce = Vector3.zero
+                    end
+                    
                     task.wait()
                 end
             end)
         else
-            -- برگردوندن همه چیز به حالت نرمال
             humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
             local bp = hrp:FindFirstChild("WaterWalkBP")
             if bp then bp:Destroy() end
