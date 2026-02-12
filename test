@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-",
+    Title = "Beta-bisoshish",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -184,3 +184,74 @@ local WaterWalk = Practical:Toggle({
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
+
+
+
+local AutoAttackToggle = Practical:Toggle({
+    Title = "اتو اتک",
+    Value = false,
+    Callback = function(state)
+        _G.AutoAttack = state
+        
+        if state then
+            task.spawn(function()
+                while _G.AutoAttack do
+                    local char = game.Players.LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    local hum = char and char:FindFirstChild("Humanoid")
+                    
+                    if hrp and hum then
+                        local targetFound = false
+                        
+                        -- جستجو برای دشمنان (NPCs)
+                        if workspace:FindFirstChild("Enemies") then
+                            for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+                                local e_hrp = enemy:FindFirstChild("HumanoidRootPart")
+                                local e_hum = enemy:FindFirstChild("Humanoid")
+                                
+                                if e_hrp and e_hum and e_hum.Health > 0 then
+                                    local dist = (hrp.Position - e_hrp.Position).Magnitude
+                                    if dist < 50 then -- شعاع تشخیص
+                                        targetFound = true
+                                        break
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- جستجو برای پلیرهای دیگر
+                        if not targetFound then
+                            for _, otherPlayer in pairs(game.Players:GetPlayers()) do
+                                if otherPlayer ~= game.Players.LocalPlayer then
+                                    local p_char = otherPlayer.Character
+                                    local p_hrp = p_char and p_char:FindFirstChild("HumanoidRootPart")
+                                    local p_hum = p_char and p_char:FindFirstChild("Humanoid")
+                                    
+                                    if p_hrp and p_hum and p_hum.Health > 0 then
+                                        local dist = (hrp.Position - p_hrp.Position).Magnitude
+                                        if dist < 50 then
+                                            targetFound = true
+                                            break
+                                        end
+                                    end
+                                end
+                            end
+                        end
+                        
+                        -- اگر هدفی پیدا شد، حمله کن
+                        if targetFound then
+                            local tool = char:FindFirstChildOfClass("Tool")
+                            if tool then
+                                -- استفاده از ریموت اصلی بازی برای حمله
+                                pcall(function()
+                                    game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer("Attack")
+                                end)
+                            end
+                        end
+                    end
+                    task.wait(0.05) -- سرعت حمله (کمتر = سریع‌تر)
+                end
+            end)
+        end
+    end
+})
