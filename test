@@ -3,7 +3,7 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub | v1.6.0",
+    Title  = "Vitex Hub | v1.7.0",
     Icon   = "worm",
     Author = "by Vitex",
     Theme  = "Dark",
@@ -38,5 +38,15 @@ local Jump = Practical:Slider({
     },
     Callback = function(value)
         game.Players.LocalPlayer.Character.Humanoid.JumpPower = value
+    end
+})
+
+local WaterWalk = Practical:Toggle({
+    Title = "Walk On Water",
+    Default = true,
+    Callback = function(value)
+        if value then
+            game.Players.LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
+        end
     end
 })
