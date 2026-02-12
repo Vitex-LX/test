@@ -1,91 +1,133 @@
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+-- =============================================
+--  WindUI - Simple Example Script
+--  Paste this into your executor
+-- =============================================
 
-WindUI:AddTheme({
-    Name = "My Theme", -- theme name
-    
-    Accent = Color3.fromHex("#18181b"),
-    Background = Color3.fromHex("#101010"), -- Accent
-    Outline = Color3.fromHex("#FFFFFF"),
-    Text = Color3.fromHex("#FFFFFF"),
-    Placeholder = Color3.fromHex("#7a7a7a"),
-    Button = Color3.fromHex("#52525b"),
-    Icon = Color3.fromHex("#a1a1aa"),
-})
+-- Load WindUI
+local WindUI = loadstring(game:HttpGet(
+    "https://raw.githubusercontent.com/footagesUS/WindUI/refs/heads/main/src/init.lua"
+))()
 
-WindUI:Gradient({                                                      
-    ["0"] = { Color = Color3.fromHex("#1f1f23"), Transparency = 0 },            
-    ["100"]   = { Color = Color3.fromHex("#18181b"), Transparency = 0 },      
-}, {                                                                            
-    Rotation = 0,                                                               
-}), 
-
-
-
-WindUI:SetTheme("My Theme")
-
+-- =============================================
+--  1. Create the Window
+-- =============================================
 local Window = WindUI:CreateWindow({
-    Title = "My Super Hub",
-    Icon = "door-open", -- lucide icon
-    Author = "by .ftgs and .ftgs",
-    Folder = "MySuperHub",
-    
-    -- ↓ This all is Optional. You can remove it.
-    Size = UDim2.fromOffset(580, 460),
-    MinSize = Vector2.new(560, 350),
-    MaxSize = Vector2.new(850, 560),
-    Transparent = true,
-    Theme = "Dark",
+    Title  = "My Hub",
+    Icon   = "star",          -- lucide icon name
+    Author = "by YourName",
+    Theme  = "Dark",          -- built-in theme
+    Acrylic = true,           -- frosted-glass background
     Resizable = true,
-    SideBarWidth = 200,
-    BackgroundImageTransparency = 0.42,
-    HideSearchBar = true,
-    ScrollBarEnabled = false,
-    
-    -- ↓ Optional. You can remove it.
-    --[[ You can set 'rbxassetid://' or video to Background.
-        'rbxassetid://':
-            Background = "rbxassetid://", -- rbxassetid
-        Video:
-            Background = "video:YOUR-RAW-LINK-TO-VIDEO.webm", -- video 
-    --]]
-    
-    -- ↓ Optional. You can remove it.
-    User = {
-        Enabled = true,
-        Anonymous = true,
-        Callback = function()
-            print("clicked")
-        end,
-    },
-    
-    --       remove this all, 
-    -- !  ↓  if you DON'T need the key system
-    KeySystem = { 
-        -- ↓ Optional. You can remove it.
-        Key = { "1234", "5678" },
-        
-        Note = "Example Key System.",
-        
-        -- ↓ Optional. You can remove it.
-        Thumbnail = {
-            Image = "rbxassetid://",
-            Title = "Thumbnail",
-        },
-        
-        -- ↓ Optional. You can remove it.
-        URL = "YOUR LINK TO GET KEY (Discord, Linkvertise, Pastebin, etc.)",
-        
-        -- ↓ Optional. You can remove it.
-        SaveKey = false, -- automatically save and load the key.
-        
-        -- ↓ Optional. You can remove it.
-        -- API = {} ← Services. Read about it below ↓
-    },
+    ToggleKey = Enum.KeyCode.RightControl, -- press to show/hide
 })
 
+-- =============================================
+--  2. Create Tabs
+-- =============================================
+local MainTab    = Window:CreateTab({ Title = "Main",    Icon = "home" })
+local PlayerTab  = Window:CreateTab({ Title = "Player",  Icon = "user" })
+local SettingsTab = Window:CreateTab({ Title = "Settings", Icon = "settings" })
 
-local Tab = Window:Tab({
-    Title = "کاربردی",
-    Icon = "bird", -- optional
-    Locked = false,
+-- =============================================
+--  3. Main Tab  — buttons & toggles
+-- =============================================
+local MainSection = MainTab:Section({ Title = "General" })
+
+-- Button
+MainSection:Button({
+    Title   = "Print Hello",
+    Description = "Prints a message to the console",
+    Callback = function()
+        print("Hello from WindUI!")
+    end,
 })
+
+-- Toggle
+local SpamEnabled = false
+MainSection:Toggle({
+    Title   = "Spam Toggle",
+    Description = "Enable or disable the spam",
+    Default = false,
+    Callback = function(value)
+        SpamEnabled = value
+        print("Spam:", SpamEnabled)
+    end,
+})
+
+-- Slider
+MainSection:Slider({
+    Title   = "Speed",
+    Description = "Set walk speed",
+    Min     = 16,
+    Max     = 100,
+    Default = 16,
+    Callback = function(value)
+        game.Players.LocalPlayer.Character.Humanoid.WalkSpeed = value
+    end,
+})
+
+-- =============================================
+--  4. Player Tab — input & dropdown
+-- =============================================
+local PlayerSection = PlayerTab:Section({ Title = "Teleport" })
+
+-- Text Input
+PlayerSection:Input({
+    Title       = "Teleport to Player",
+    Description = "Enter a username",
+    Placeholder = "Username...",
+    Callback = function(text)
+        local target = game.Players:FindFirstChild(text)
+        if target and target.Character then
+            game.Players.LocalPlayer.Character:SetPrimaryPartCFrame(
+                target.Character.PrimaryPart.CFrame
+            )
+            print("Teleported to", text)
+        else
+            print("Player not found:", text)
+        end
+    end,
+})
+
+-- Dropdown
+PlayerSection:Dropdown({
+    Title   = "Jump Power",
+    Description = "Choose a jump power preset",
+    Options = { "Default (50)", "High (100)", "Super (200)", "Off (0)" },
+    Default = "Default (50)",
+    Callback = function(option)
+        local map = {
+            ["Default (50)"] = 50,
+            ["High (100)"]   = 100,
+            ["Super (200)"]  = 200,
+            ["Off (0)"]      = 0,
+        }
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = map[option]
+        print("Jump power set to", map[option])
+    end,
+})
+
+-- =============================================
+--  5. Settings Tab — theme & info
+-- =============================================
+local SettingsSection = SettingsTab:Section({ Title = "Appearance" })
+
+SettingsSection:Dropdown({
+    Title   = "Theme",
+    Description = "Change the UI theme",
+    Options = { "Dark", "Light", "Aqua", "Rose" },
+    Default = "Dark",
+    Callback = function(theme)
+        Window:SetTheme(theme)
+    end,
+})
+
+SettingsSection:Paragraph({
+    Title   = "About",
+    Content = "This is a simple WindUI example.\nPress RightControl to toggle visibility.",
+})
+
+-- =============================================
+--  Done! Window opens automatically.
+-- =============================================
+print("WindUI loaded! Press RightControl to toggle.")
