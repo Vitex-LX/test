@@ -8,4 +8,8 @@ local Window = WindUI:CreateWindow({
     Author = "by Vitex",
     Theme  = "Dark",
     Acrylic = true,
+    Footer = {
+        Text = "v1.0.0",
+    },
 })
+
