@@ -2,13 +2,10 @@ local WindUI = loadstring(game:HttpGet(
     "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
 ))()
 
--- =============================================
---  1. Create the Window
--- =============================================
 local Window = WindUI:CreateWindow({
     Title  = "Vitex Hub",
-    Icon   = "larv",          -- lucide icon name
+    Icon   = "snake",
     Author = "by Vitex",
-    Theme  = "Dark",          -- built-in theme
-    Acrylic = true,           -- frosted-glass background
+    Theme  = "Dark",
+    Acrylic = true,
 })
