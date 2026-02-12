@@ -19,7 +19,7 @@ Practical:Select()
 local Speed = Practical:Slider({
     Title = "WalkSpeed",
     Value = {
-        Min = 0,
+        Min = 100,
         Max = 500,
         Default = 100
     },
@@ -28,3 +28,4 @@ local Speed = Practical:Slider({
         game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", realValue)
     end
 })
+
