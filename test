@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.lor.0",
+    Title = "v1.kir.0",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -98,7 +98,7 @@ TeleportSection:Dropdown({
 })
 
 -- ۲. تاگل اجرا و توقف
-TeleportSection:Toggle({
+TeleportTab:Toggle({
     Title = "شروع جابه‌جایی",
     Value = false,
     Callback = function(state)
