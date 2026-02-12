@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.kir.0",
+    Title = "v1.kooon.0",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -135,33 +135,41 @@ WaterPart.Anchored = true
 WaterPart.CanCollide = false
 WaterPart.Parent = workspace
 
+-- تعریف تابع منطقی به صورت جداگانه برای استفاده مجدد
+local function UpdateWaterWalk(value)
+    _G.WaterWalk = value
+    if value then
+        task.spawn(function()
+            while _G.WaterWalk do
+                local char = game.Players.LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChild("Humanoid")
+                
+                if hrp and hum then
+                    WaterPart.CanCollide = true
+                    -- قرار دادن پارت دقیقاً زیر پای پلیر
+                    WaterPart.CFrame = CFrame.new(hrp.Position.X, 0.5, hrp.Position.Z)
+                    
+                    if hum:GetState() == Enum.HumanoidStateType.Swimming then
+                        hum:ChangeState(Enum.HumanoidStateType.Running)
+                    end
+                end
+                task.wait()
+            end
+            WaterPart.CanCollide = false
+        end)
+    else
+        WaterPart.CanCollide = false
+    end
+end
+
 local WaterWalk = Practical:Toggle({
     Title = "راه‌رفتن روی آب",
     Value = true,
-    Callback = function(value)
-        _G.WaterWalk = value
-                if value then
-            task.spawn(function()
-                while _G.WaterWalk do
-                    local char = game.Players.LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    local hum = char and char:FindFirstChild("Humanoid")
-                    
-                    if hrp and hum then
-
-                        WaterPart.CanCollide = true
-                        WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
-                        
-
-                        if hum:GetState() == Enum.HumanoidStateType.Swimming then
-                            hum:ChangeState(Enum.HumanoidStateType.Running)
-                        end
-                    end
-                    task.wait()
-                end
-                WaterPart.CanCollide = false
-            end)        else
-            WaterPart.CanCollide = false
-        end
-    end
+    Callback = UpdateWaterWalk
 })
+
+-- اجرای دستی در لحظه لود شدن اسکریپت
+if WaterWalk.Value then
+    UpdateWaterWalk(true)
+end
