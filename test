@@ -12,8 +12,9 @@ local Window = WindUI:CreateWindow({
 
 local dd = Window:Tab({
     Title = "کاربردی",
-    Icon = "fire", -- optional
+    Icon = "flame", -- optional
 })
 
 Tab:Select()
+
 
