@@ -17,13 +17,13 @@ local Practical = Window:Tab({
 Practical:Select()
 
 local Speed = Practical:Slider({
-    Title = "Volume",
+    Title = "ُWalkSpeed",
     Value = {
         Min = 0,
         Max = 500,
         Default = 20
     },
     Callback = function(value)
-        game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", value)
+        game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", Value)
     end
 })
