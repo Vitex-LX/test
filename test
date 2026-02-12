@@ -178,7 +178,7 @@ if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
 
-local Dropdown = Tab:Dropdown({
+local Dropdown = TeleportTab:Dropdown({
     Title = "Select Value",
     Values = {
         "Option 1",
@@ -189,4 +189,3 @@ local Dropdown = Tab:Dropdown({
         print("Selected:", selected)
     end
 })
-
