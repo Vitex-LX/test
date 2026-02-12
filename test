@@ -3,7 +3,7 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub | v1.4.0",
+    Title  = "Vitex Hub | v1.5.0",
     Icon   = "worm",
     Author = "by Vitex",
     Theme  = "Dark",
@@ -21,12 +21,10 @@ local Speed = Practical:Slider({
     Value = {
         Min = 0,
         Max = 500,
-        Default = 16
+        Default = 100
     },
     Callback = function(value)
-        local character = game.Players.LocalPlayer.Character 
-            or game.Players.LocalPlayer.CharacterAdded:Wait()
-        local humanoid = character:WaitForChild("Humanoid")
-        humanoid.WalkSpeed = value
+        local realValue = value / 50
+        game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", realValue)
     end
 })
