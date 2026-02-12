@@ -28,3 +28,15 @@ local WalkSpeed = Practical:Slider({
         game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", realValue)
     end
 })
+
+local Jump = Practical:Slider({
+    Title = "JumpPower",
+    Value = {
+        Min = 50,
+        Max = 500,
+        Default = 50
+    },
+    Callback = function(value)
+        game.Players.LocalPlayer.Character.Humanoid.JumpPower = value
+    end
+})
