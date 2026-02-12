@@ -55,7 +55,7 @@ local TeleportTab = Window:Tab({
     Icon = "map-pin",
 })
 
-local TeleportSection = TeleportTab:Section({ Title = "مکان‌ها" })
+local TeleportSection = TeleportTab:Section({ Title = "تنظیمات جابه‌جایی" })
 
 local locations = {
     { name = "Pirate Island",  cframe = CFrame.new(1041.88, 16.27, 1424.93) },
@@ -77,16 +77,14 @@ local locations = {
 
 local SelectedCFrame = nil
 local TPConnection = nil
-local player = game.Players.LocalPlayer
-
--- استخراج اسامی برای Dropdown
 local locNames = {}
 for _, v in pairs(locations) do table.insert(locNames, v.name) end
 
--- ۱. انتخاب مقصد
-TeleportSection:Dropdown({
-    Title = "انتخاب جزیره",
+-- استفاده از Select طبق داکیومنت WindUI
+TeleportSection:Select({
+    Title = "انتخاب مقصد",
     Values = locNames,
+    Value = locNames[1],
     Callback = function(val)
         for _, v in pairs(locations) do
             if v.name == val then
@@ -97,18 +95,20 @@ TeleportSection:Dropdown({
     end
 })
 
--- ۲. تاگل اجرا و توقف
-TeleportTab:Toggle({
-    Title = "شروع جابه‌جایی",
+-- استفاده از Toggle طبق داکیومنت WindUI
+TeleportSection:Toggle({
+    Title = "شروع تلپورت",
     Value = false,
     Callback = function(state)
         _G.Teleporting = state
         
         if state then
             if not SelectedCFrame then return end
-                        local char = player.Character
+            
+            local char = game.Players.LocalPlayer.Character
             local hrp = char:FindFirstChild("HumanoidRootPart")
-                        -- جلوگیری از سقوط و لرزش
+            
+            -- پایداری فیزیکی (حذف لرزش و ثبات ارتفاع)
             local bv = Instance.new("BodyVelocity")
             bv.Velocity = Vector3.new(0,0,0)
             bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
@@ -122,34 +122,34 @@ TeleportTab:Toggle({
                     return
                 end
 
-                -- Noclip فعال در هر فریم
+                -- Noclip برای عبور از موانع و جلوگیری از عقب‌گرد
                 for _, part in pairs(char:GetDescendants()) do
                     if part:IsA("BasePart") then part.CanCollide = false end
                 end
 
                 local dist = (SelectedCFrame.Position - hrp.Position).Magnitude
                 if dist > 5 then
-                    local speed = 250
+                    local speed = 250 -- سرعت ایمن
                     hrp.CFrame = hrp.CFrame + (SelectedCFrame.Position - hrp.Position).Unit * speed * dt
                 else
                     hrp.CFrame = SelectedCFrame
                     _G.Teleporting = false
                     if TPConnection then TPConnection:Disconnect() end
-                    if bv then bv:Destroy() end
-                end
+                    if bv then bv:Destroy() end                end
             end)
         else
-            -- توقف آنی
+            -- توقف آنی و برگرداندن حالت عادی
             if TPConnection then TPConnection:Disconnect() end
-            if player.Character.HumanoidRootPart:FindFirstChild("TP_Stabilizer") then
-                player.Character.HumanoidRootPart.TP_Stabilizer:Destroy()
+            local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp and hrp:FindFirstChild("TP_Stabilizer") then
+                hrp.TP_Stabilizer:Destroy()
             end
-            for _, part in pairs(player.Character:GetDescendants()) do
+            for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") then part.CanCollide = true end
             end
         end
     end
-})```
+})
 
 
 local WaterPart = Instance.new("Part")
