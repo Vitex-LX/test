@@ -3,11 +3,18 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub | v1.7.0",
-    Icon   = "worm",
+    Title  = "Vitex Hub",
+    Icon   = "aperture",
     Author = "by Vitex",
     Theme  = "Dark",
     Acrylic = true,
+})
+
+Window:Tag({
+    Title = "v1.0.0",
+    Icon = "history",
+    Color = Color3.fromHex("#5f0188"),
+    Radius = 0, -- from 0 to 13
 })
 
 local Practical = Window:Tab({
