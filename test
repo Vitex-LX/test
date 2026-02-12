@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.0.0",
+    Title = "v1.1.0",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0, -- from 0 to 13
@@ -50,7 +50,6 @@ local Jump = Practical:Slider({
 
 
 
-
 local TeleportTab = Window:Tab({
     Title = "تلپورت",
     Icon = "map-pin",
@@ -77,14 +76,31 @@ local locations = {
 }
 
 local tweenService = game:GetService("TweenService")
-local tweenInfo = TweenInfo.new(45, Enum.EasingStyle.Linear)
 
 for _, location in ipairs(locations) do
     TeleportSection:Button({
         Title = location.name,
         Callback = function()
             local hrp = game.Players.LocalPlayer.Character.HumanoidRootPart
-            tweenService:Create(hrp, tweenInfo, { CFrame = location.cframe }):Play()
+            
+            -- اول بره بالا
+            tweenService:Create(hrp, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+                CFrame = hrp.CFrame * CFrame.new(0, 50, 0)
+            }):Play()
+            
+            task.wait(1)
+            
+            -- بعد بره مقصد (ولی 50 متر بالاتر)
+            tweenService:Create(hrp, TweenInfo.new(25, Enum.EasingStyle.Linear), {
+                CFrame = location.cframe * CFrame.new(0, 50, 0)
+            }):Play()
+            
+            task.wait(10)
+            
+            -- بعد بیاد پایین
+            tweenService:Create(hrp, TweenInfo.new(1, Enum.EasingStyle.Quad), {
+                CFrame = location.cframe
+            }):Play()
         end,
     })
 end
