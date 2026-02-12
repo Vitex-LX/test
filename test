@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.kir.0",
+    Title = "Beta-1",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -129,13 +129,12 @@ end
 
 
 local WaterPart = Instance.new("Part")
-WaterPart.Size = Vector3.new(10, 1, 10)
+WaterPart.Size = Vector3.new(20, 1, 20) -- کمی بزرگتر برای امنیت بیشتر
 WaterPart.Transparency = 1
 WaterPart.Anchored = true
 WaterPart.CanCollide = false
 WaterPart.Parent = workspace
 
--- تعریف تابع منطقی به صورت جداگانه برای استفاده مجدد
 local function UpdateWaterWalk(value)
     _G.WaterWalk = value
     if value then
@@ -146,15 +145,20 @@ local function UpdateWaterWalk(value)
                 local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum then
-                    WaterPart.CanCollide = true
-                    -- قرار دادن پارت دقیقاً زیر پای پلیر
-                    WaterPart.CFrame = CFrame.new(hrp.Position.X, 0.5, hrp.Position.Z)
-                    
-                    if hum:GetState() == Enum.HumanoidStateType.Swimming then
-                        hum:ChangeState(Enum.HumanoidStateType.Running)
+                    -- اگر ارتفاع پلیر بیشتر از سطح آب بود، پارت سفت شود
+                    -- عدد -1.5 آستانه تشخیص غرق شدن است
+                    if hrp.Position.Y > -1.5 then
+                        WaterPart.CanCollide = true
+                        WaterPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
+                        
+                        if hum:GetState() == Enum.HumanoidStateType.Swimming then
+                            hum:ChangeState(Enum.HumanoidStateType.Running)
+                        end
+                    else
+                        -- اگر زیر آب بودید، پارت شل شود تا بتوانید بالا بیایید
+                        WaterPart.CanCollide = false
                     end
-                end
-                task.wait()
+                end                task.wait()
             end
             WaterPart.CanCollide = false
         end)
@@ -163,13 +167,20 @@ local function UpdateWaterWalk(value)
     end
 end
 
-local WaterWalk = Practical:Toggle({
+local WaterWalk = Practical:Toggle({    
     Title = "راه‌رفتن روی آب",
     Value = true,
     Callback = UpdateWaterWalk
 })
 
--- اجرای دستی در لحظه لود شدن اسکریپت
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
+
+
+local Section = TeleportTab:Section({
+    Title = "General Settings"
+})
+ 
+Section:Button({ Title = "Button in Section" })
+Section:Toggle({ Title = "Toggle in Section" })
