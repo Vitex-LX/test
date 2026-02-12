@@ -3,19 +3,16 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub | v2.0.0",
+    Title  = "Vitex Hub | v1.0.0,
     Icon   = "snake",
     Author = "by Vitex",
     Theme  = "Dark",
     Acrylic = true,
 })
 
-local dd = Window:Tab({
+local Practical = Window:Tab({
     Title = "کاربردی",
-    Icon = "flame", -- optional
+    Icon = "fire",
 })
 
-Tab:Select()
-
-
-
+Practical:Select()
