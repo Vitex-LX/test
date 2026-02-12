@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-1212",
+    Title = "Beta-26",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -129,7 +129,7 @@ end
 
 
 local WaterPart = Instance.new("Part")
-WaterPart.Size = Vector3.new(50, 0.2, 50) -- بسیار نازک برای جلوگیری از گیر کردن
+WaterPart.Size = Vector3.new(100, 1, 100) -- بزرگتر برای پایداری
 WaterPart.Transparency = 1
 WaterPart.Anchored = true
 WaterPart.CanCollide = false
@@ -137,30 +137,32 @@ WaterPart.Parent = workspace
 
 local function UpdateWaterWalk(value)
     _G.WaterWalk = value
-    if value then        task.spawn(function()
+    if value then
+        task.spawn(function()
             while _G.WaterWalk do
-                local char = game.Players.LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")                local hum = char and char:FindFirstChild("Humanoid")
+                local char = game.Players.LocalPlayer.Character                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum then
-                    local currentPos = hrp.Position
+                    local waterLevel = 0 -- سطح استاندارد آب در بلوکس فروت
                     
-                    -- اگر پلیر خیلی عمیق رفت (مثلاً با Flash Step)، او را به بالا پرتاب کن
-                    if currentPos.Y < -2 then
-                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 40, hrp.Velocity.Z)
-                        WaterPart.CanCollide = false -- غیرفعال کردن موقت برای عبور از پارت به سمت بالا
+                    -- اگر پلیر زیر سطح آب است (حتی هنگام روشن کردن اسکریپت)
+                    if hrp.Position.Y < (waterLevel - 1) then
+                        WaterPart.CanCollide = false -- غیرفعال کردن پارت برای عبور از آن به سمت بالا
+                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z) -- پرتاب به سمت سطح
                     else
-                        -- تنظیم پارت در سطح آب (ارتفاع 0 استاندارد بلوکس فروت است)
+                        -- قرارگیری دقیق روی سطح آب
                         WaterPart.CanCollide = true
-                        WaterPart.CFrame = CFrame.new(currentPos.X, -0.8, currentPos.Z)
+                        -- تنظیم ارتفاع پارت به طوری که سطح بالایی آن دقیقاً روی 0 باشد
+                        WaterPart.CFrame = CFrame.new(hrp.Position.X, waterLevel - 0.5, hrp.Position.Z)
                     end
                     
-                    -- جلوگیری از حالت شنا
-                    if hum:GetState() == Enum.HumanoidStateType.Swimming or currentPos.Y < 0 then
+                    -- اجبار کاراکتر به حالت دویدن (حتی اگر در حال شنا بود)
+                    if hum:GetState() == Enum.HumanoidStateType.Swimming or hrp.Position.Y < waterLevel then
                         hum:ChangeState(Enum.HumanoidStateType.Running)
                     end
                 end
-                task.wait() -- سرعت بالای چک کردن برای جلوگیری از فرو رفتن
+                task.wait()
             end
             WaterPart.CanCollide = false
         end)
@@ -168,64 +170,14 @@ local function UpdateWaterWalk(value)
         WaterPart.CanCollide = false
     end
 end
+
 local WaterWalk = Practical:Toggle({
     Title = "راه‌رفتن روی آب",
     Value = true,
     Callback = UpdateWaterWalk
 })
 
--- اجرای خودکار در شروع
+-- چک کردن وضعیت اولیه
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
-
--- اضافه کردن بخش مبارزه به تب کاربردیlocal CombatSection = Practical:Section({ Title = "مبارزه (Combat)" })
-
-local function GetCurrentTool()
-    local char = game.Players.LocalPlayer.Character
-    if char then
-        local tool = char:FindFirstChildOfClass("Tool")
-        -- چک کردن اینکه آیا وسیله در دست Melee است (در بلوکس فروت Meleeها معمولاً فاقد فیلد ToolTip خاص هستند یا نام مشخصی دارند)
-        if tool and (tool:FindFirstChild("Attack") or tool:FindFirstChild("Main")) then
-            return tool
-        end
-    end
-    return nil
-end
-
-local AutoDamageToggle = Practical:Toggle({
-    Title = "دمیج خودکار (Kill Aura)",
-    Value = false,
-    Callback = function(state)
-        _G.AutoDamage = state
-        
-        if state then
-            task.spawn(function()
-                while _G.AutoDamage do
-                    local char = game.Players.LocalPlayer.Character
-                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                    local tool = GetCurrentTool()
-
-                    if hrp and tool then
-                        -- جستجو برای دشمنان در نزدیکی (شعاع 30 متری)
-                        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                            local e_hrp = enemy:FindFirstChild("HumanoidRootPart")
-                            local e_hum = enemy:FindFirstChild("Humanoid")
-                            
-                            if e_hrp and e_hum and e_hum.Health > 0 then
-                                local dist = (hrp.Position - e_hrp.Position).Magnitude
-                                if dist < 30 then
-                                    -- ریموت اصلی حمله در Blox Fruits
-                                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("Attack")
-                                    
-                                    -- لرزش دوربین یا افکت کلیک (اختیاری برای پایداری)
-                                    -- game:GetService("VirtualUser"):ClickButton1(Vector2.new(0,0))
-                                end
-                            end
-                        end
-                    end
-                    task.wait(0.1) -- سرعت حمله (کمتر = سریع‌تر)
-                end
-            end)        end
-    end
-})
