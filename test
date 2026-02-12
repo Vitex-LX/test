@@ -177,10 +177,14 @@ if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
 
-
-local Section = TeleportTab:Section({
-    Title = "General Settings"
+local Dropdown = Tab:Dropdown({
+    Title = "Select Value",
+    Values = {
+        "Option 1",
+        "Option 2",
+        "Option 3"
+    },
+    Callback = function(selected)
+        print("Selected:", selected)
+    end
 })
- 
-Section:Button({ Title = "Button in Section" })
-Section:Toggle({ Title = "Toggle in Section" })
