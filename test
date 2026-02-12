@@ -3,8 +3,8 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub | v1.0.0,
-    Icon   = "snake",
+    Title  = "Vitex Hub | v1.1.0,
+    Icon   = "worm",
     Author = "by Vitex",
     Theme  = "Dark",
     Acrylic = true,
@@ -16,3 +16,14 @@ local Practical = Window:Tab({
 })
 Practical:Select()
 
+local Speed = Practical:Slider({
+    Title = "Volume",
+    Value = {
+        Min = 0,
+        Max = 500,
+        Default = 20
+    },
+    Callback = function(value)
+        game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", Value)
+    end
+})
