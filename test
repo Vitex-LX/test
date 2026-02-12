@@ -6,7 +6,7 @@ local Window = WindUI:CreateWindow({
     Title  = "Vitex Hub",
     Icon   = "aperture",
     Author = "by Vitex",
-    Theme  = "Dark",
+    Theme  = "Violet",
     Acrylic = true,
 })
 
@@ -62,3 +62,4 @@ local WaterWalk = Practical:Toggle({
         end
     end
 })
+
