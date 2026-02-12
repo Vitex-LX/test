@@ -21,7 +21,7 @@ local WalkSpeed = Practical:Slider({
     Value = {
         Min = 50,
         Max = 500,
-        Default = 50  -- ✅ سرعت نرمال
+        Default = 50
     },
     Callback = function(value)
         local realValue = value / 50
@@ -42,11 +42,16 @@ local Jump = Practical:Slider({
 })
 
 local WaterWalk = Practical:Toggle({
-    Title = "Walk On Water",
-    Default = true,
+    Title = "Walk on Water",
+    Value = true,
     Callback = function(value)
+        local character = game.Players.LocalPlayer.Character
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        
         if value then
-            game.Players.LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Swimming)
+            hrp.CustomPhysicalProperties = PhysicalProperties.new(0, 0, 0, 0, 0)
+        else
+            hrp.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5, 0, 0)
         end
     end
 })
