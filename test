@@ -15,4 +15,5 @@ local dd = Window:Tab({
     Icon = "fire", -- optional
 })
 
-dd:Select()
+Tab:Select()
+
