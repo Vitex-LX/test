@@ -80,8 +80,8 @@ local TPConnection = nil
 local locNames = {}
 for _, v in pairs(locations) do table.insert(locNames, v.name) end
 
--- استفاده از Select طبق داکیومنت WindUI
-TeleportSection:Select({
+-- ذخیره در متغیر برای کنترل در آینده
+local TeleportSelect = TeleportSection:Select({
     Title = "انتخاب مقصد",
     Values = locNames,
     Value = locNames[1],
@@ -95,8 +95,7 @@ TeleportSection:Select({
     end
 })
 
--- استفاده از Toggle طبق داکیومنت WindUI
-TeleportSection:Toggle({
+local TeleportToggle = TeleportSection:Toggle({
     Title = "شروع تلپورت",
     Value = false,
     Callback = function(state)
@@ -108,7 +107,6 @@ TeleportSection:Toggle({
             local char = game.Players.LocalPlayer.Character
             local hrp = char:FindFirstChild("HumanoidRootPart")
             
-            -- پایداری فیزیکی (حذف لرزش و ثبات ارتفاع)
             local bv = Instance.new("BodyVelocity")
             bv.Velocity = Vector3.new(0,0,0)
             bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
@@ -119,26 +117,28 @@ TeleportSection:Toggle({
                 if not _G.Teleporting or not hrp then
                     if TPConnection then TPConnection:Disconnect() end
                     if bv then bv:Destroy() end
+                    -- خاموش کردن بصری دکمه در صورت قطع ناگهانی
+                    TeleportToggle:SetValue(false) 
                     return
                 end
 
-                -- Noclip برای عبور از موانع و جلوگیری از عقب‌گرد
                 for _, part in pairs(char:GetDescendants()) do
                     if part:IsA("BasePart") then part.CanCollide = false end
                 end
 
                 local dist = (SelectedCFrame.Position - hrp.Position).Magnitude
                 if dist > 5 then
-                    local speed = 250 -- سرعت ایمن
+                    local speed = 250
                     hrp.CFrame = hrp.CFrame + (SelectedCFrame.Position - hrp.Position).Unit * speed * dt
                 else
                     hrp.CFrame = SelectedCFrame
                     _G.Teleporting = false
+                    TeleportToggle:SetValue(false) -- خودکار خاموش شود وقتی رسید
                     if TPConnection then TPConnection:Disconnect() end
-                    if bv then bv:Destroy() end                end
+                    if bv then bv:Destroy() end
+                end
             end)
         else
-            -- توقف آنی و برگرداندن حالت عادی
             if TPConnection then TPConnection:Disconnect() end
             local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if hrp and hrp:FindFirstChild("TP_Stabilizer") then
@@ -147,8 +147,7 @@ TeleportSection:Toggle({
             for _, part in pairs(game.Players.LocalPlayer.Character:GetDescendants()) do
                 if part:IsA("BasePart") then part.CanCollide = true end
             end
-        end
-    end
+        end    end
 })
 
 
