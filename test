@@ -14,5 +14,5 @@ local Practical = Window:Tab({
     Title = "کاربردی",
     Icon = "fire",
 })
-
 Practical:Select()
+
