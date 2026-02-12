@@ -129,7 +129,7 @@ end
 
 
 local WaterPart = Instance.new("Part")
-WaterPart.Size = Vector3.new(20, 1, 20) -- کمی بزرگتر برای امنیت بیشتر
+WaterPart.Size = Vector3.new(50, 0.2, 50) -- بسیار نازک برای جلوگیری از گیر کردن
 WaterPart.Transparency = 1
 WaterPart.Anchored = true
 WaterPart.CanCollide = false
@@ -137,42 +137,43 @@ WaterPart.Parent = workspace
 
 local function UpdateWaterWalk(value)
     _G.WaterWalk = value
-    if value then
-        task.spawn(function()
+    if value then        task.spawn(function()
             while _G.WaterWalk do
                 local char = game.Players.LocalPlayer.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChild("Humanoid")
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")                local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum then
-                    -- اگر ارتفاع پلیر بیشتر از سطح آب بود، پارت سفت شود
-                    -- عدد -1.5 آستانه تشخیص غرق شدن است
-                    if hrp.Position.Y > -1.5 then
-                        WaterPart.CanCollide = true
-                        WaterPart.CFrame = CFrame.new(hrp.Position.X, -0.5, hrp.Position.Z)
-                        
-                        if hum:GetState() == Enum.HumanoidStateType.Swimming then
-                            hum:ChangeState(Enum.HumanoidStateType.Running)
-                        end
+                    local currentPos = hrp.Position
+                    
+                    -- اگر پلیر خیلی عمیق رفت (مثلاً با Flash Step)، او را به بالا پرتاب کن
+                    if currentPos.Y < -2 then
+                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 40, hrp.Velocity.Z)
+                        WaterPart.CanCollide = false -- غیرفعال کردن موقت برای عبور از پارت به سمت بالا
                     else
-                        -- اگر زیر آب بودید، پارت شل شود تا بتوانید بالا بیایید
-                        WaterPart.CanCollide = false
+                        -- تنظیم پارت در سطح آب (ارتفاع 0 استاندارد بلوکس فروت است)
+                        WaterPart.CanCollide = true
+                        WaterPart.CFrame = CFrame.new(currentPos.X, -0.8, currentPos.Z)
                     end
-                end                task.wait()
+                    
+                    -- جلوگیری از حالت شنا
+                    if hum:GetState() == Enum.HumanoidStateType.Swimming or currentPos.Y < 0 then
+                        hum:ChangeState(Enum.HumanoidStateType.Running)
+                    end
+                end
+                task.wait() -- سرعت بالای چک کردن برای جلوگیری از فرو رفتن
             end
             WaterPart.CanCollide = false
         end)
     else
         WaterPart.CanCollide = false
     end
-end
-
-local WaterWalk = Practical:Toggle({    
+endlocal WaterWalk = Practical:Toggle({
     Title = "راه‌رفتن روی آب",
     Value = true,
     Callback = UpdateWaterWalk
 })
 
+-- اجرای خودکار در شروع
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
