@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-26",
+    Title = "Beta-",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -129,7 +129,7 @@ end
 
 
 local WaterPart = Instance.new("Part")
-WaterPart.Size = Vector3.new(100, 1, 100) -- بزرگتر برای پایداری
+WaterPart.Size = Vector3.new(100, 0.5, 100) -- بسیار نازک
 WaterPart.Transparency = 1
 WaterPart.Anchored = true
 WaterPart.CanCollide = false
@@ -140,25 +140,29 @@ local function UpdateWaterWalk(value)
     if value then
         task.spawn(function()
             while _G.WaterWalk do
-                local char = game.Players.LocalPlayer.Character                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local char = game.Players.LocalPlayer.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum then
-                    local waterLevel = 0 -- سطح استاندارد آب در بلوکس فروت
+                    local waterLevel = 0 -- سطح آب
+                    local currentY = hrp.Position.Y
                     
-                    -- اگر پلیر زیر سطح آب است (حتی هنگام روشن کردن اسکریپت)
-                    if hrp.Position.Y < (waterLevel - 1) then
-                        WaterPart.CanCollide = false -- غیرفعال کردن پارت برای عبور از آن به سمت بالا
-                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 50, hrp.Velocity.Z) -- پرتاب به سمت سطح
+                    -- اگر زیر سطح آب رفتید، بلافاصله به بالا برگردانید
+                    if currentY < waterLevel then
+                        WaterPart.CanCollide = false
+                        -- نیروی قوی برای بیرون آمدن سریع
+                        hrp.Velocity = Vector3.new(hrp.Velocity.X, 100, hrp.Velocity.Z)
+                        hrp.CFrame = CFrame.new(hrp.Position.X, waterLevel + 2, hrp.Position.Z)
                     else
                         -- قرارگیری دقیق روی سطح آب
                         WaterPart.CanCollide = true
-                        -- تنظیم ارتفاع پارت به طوری که سطح بالایی آن دقیقاً روی 0 باشد
-                        WaterPart.CFrame = CFrame.new(hrp.Position.X, waterLevel - 0.5, hrp.Position.Z)
+                        -- پارت دقیقاً روی 0 (سطح آب)
+                        WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
                     end
                     
-                    -- اجبار کاراکتر به حالت دویدن (حتی اگر در حال شنا بود)
-                    if hum:GetState() == Enum.HumanoidStateType.Swimming or hrp.Position.Y < waterLevel then
+                    -- جلوگیری از شنا
+                    if hum:GetState() == Enum.HumanoidStateType.Swimming then
                         hum:ChangeState(Enum.HumanoidStateType.Running)
                     end
                 end
@@ -177,7 +181,6 @@ local WaterWalk = Practical:Toggle({
     Callback = UpdateWaterWalk
 })
 
--- چک کردن وضعیت اولیه
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
