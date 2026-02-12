@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-2",
+    Title = "Beta-9",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -167,7 +167,8 @@ local function UpdateWaterWalk(value)
     else
         WaterPart.CanCollide = false
     end
-endlocal WaterWalk = Practical:Toggle({
+end
+local WaterWalk = Practical:Toggle({
     Title = "راه‌رفتن روی آب",
     Value = true,
     Callback = UpdateWaterWalk
