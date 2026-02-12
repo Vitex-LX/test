@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-bisoshish",
+    Title = "Beta-877",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -186,7 +186,6 @@ if WaterWalk.Value then
 end
 
 
-
 local AutoAttackToggle = Practical:Toggle({
     Title = "اتو اتک",
     Value = false,
@@ -200,56 +199,55 @@ local AutoAttackToggle = Practical:Toggle({
                     local hrp = char and char:FindFirstChild("HumanoidRootPart")
                     local hum = char and char:FindFirstChild("Humanoid")
                     
-                    if hrp and hum then
-                        local targetFound = false
+                    if hrp and hum and hum.Health > 0 then
+                        local closestEnemy = nil
+                        local closestDist = 50 -- شعاع تشخیص
                         
-                        -- جستجو برای دشمنان (NPCs)
-                        if workspace:FindFirstChild("Enemies") then
-                            for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                                local e_hrp = enemy:FindFirstChild("HumanoidRootPart")
-                                local e_hum = enemy:FindFirstChild("Humanoid")
-                                
-                                if e_hrp and e_hum and e_hum.Health > 0 then
-                                    local dist = (hrp.Position - e_hrp.Position).Magnitude
-                                    if dist < 50 then -- شعاع تشخیص
-                                        targetFound = true
-                                        break
-                                    end
-                                end
-                            end
-                        end
-                        
-                        -- جستجو برای پلیرهای دیگر
-                        if not targetFound then
-                            for _, otherPlayer in pairs(game.Players:GetPlayers()) do
-                                if otherPlayer ~= game.Players.LocalPlayer then
-                                    local p_char = otherPlayer.Character
-                                    local p_hrp = p_char and p_char:FindFirstChild("HumanoidRootPart")
-                                    local p_hum = p_char and p_char:FindFirstChild("Humanoid")
+                        -- جستجو در workspace برای NPCها (Blox Fruits NPCها معمولاً در workspace هستند)
+                        for _, obj in pairs(workspace:GetDescendants()) do
+                            if obj:IsA("Model") and obj:FindFirstChild("Humanoid") and obj:FindFirstChild("HumanoidRootPart") then
+                                -- فیلتر کردن برای جلوگیری از انتخاب کاراکتر خود
+                                if obj ~= char then
+                                    local e_hum = obj:FindFirstChild("Humanoid")
+                                    local e_hrp = obj:FindFirstChild("HumanoidRootPart")
                                     
-                                    if p_hrp and p_hum and p_hum.Health > 0 then
-                                        local dist = (hrp.Position - p_hrp.Position).Magnitude
-                                        if dist < 50 then
-                                            targetFound = true
-                                            break
+                                    if e_hum.Health > 0 then
+                                        local dist = (hrp.Position - e_hrp.Position).Magnitude
+                                        if dist < closestDist then
+                                            closestEnemy = obj
+                                            closestDist = dist
                                         end
                                     end
                                 end
                             end
                         end
                         
-                        -- اگر هدفی پیدا شد، حمله کن
-                        if targetFound then
+                        -- اگر دشمن نزدیک پیدا شد
+                        if closestEnemy then
                             local tool = char:FindFirstChildOfClass("Tool")
+                            
                             if tool then
-                                -- استفاده از ریموت اصلی بازی برای حمله
+                                -- تلاش برای استفاده از روش‌های مختلف حمله
                                 pcall(function()
-                                    game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent"):FireServer("Attack")
+                                    -- روش ۱: ریموت اصلی
+                                    if game:GetService("ReplicatedStorage"):FindFirstChild("RigControllerEvent") then
+                                        game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("Attack")
+                                    end
+                                end)
+                                
+                                pcall(function()
+                                    -- روش ۲: متد Activate ابزار
+                                    tool:Activate()
+                                end)
+                                
+                                pcall(function()
+                                    -- روش ۳: کلیک ماوس مجازی
+                                    game:GetService("VirtualUser"):ClickButton1(Vector2.new(0, 0))
                                 end)
                             end
                         end
                     end
-                    task.wait(0.05) -- سرعت حمله (کمتر = سریع‌تر)
+                    task.wait(0.05) -- سرعت حمله
                 end
             end)
         end
