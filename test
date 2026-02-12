@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-9",
+    Title = "Beta-1212",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -179,14 +179,53 @@ if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
 
-local Dropdown = TeleportTab:Dropdown({
-    Title = "Select Value",
-    Values = {
-        "Option 1",
-        "Option 2",
-        "Option 3"
-    },
-    Callback = function(selected)
-        print("Selected:", selected)
+-- اضافه کردن بخش مبارزه به تب کاربردیlocal CombatSection = Practical:Section({ Title = "مبارزه (Combat)" })
+
+local function GetCurrentTool()
+    local char = game.Players.LocalPlayer.Character
+    if char then
+        local tool = char:FindFirstChildOfClass("Tool")
+        -- چک کردن اینکه آیا وسیله در دست Melee است (در بلوکس فروت Meleeها معمولاً فاقد فیلد ToolTip خاص هستند یا نام مشخصی دارند)
+        if tool and (tool:FindFirstChild("Attack") or tool:FindFirstChild("Main")) then
+            return tool
+        end
+    end
+    return nil
+end
+
+local AutoDamageToggle = Practical:Toggle({
+    Title = "دمیج خودکار (Kill Aura)",
+    Value = false,
+    Callback = function(state)
+        _G.AutoDamage = state
+        
+        if state then
+            task.spawn(function()
+                while _G.AutoDamage do
+                    local char = game.Players.LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    local tool = GetCurrentTool()
+
+                    if hrp and tool then
+                        -- جستجو برای دشمنان در نزدیکی (شعاع 30 متری)
+                        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+                            local e_hrp = enemy:FindFirstChild("HumanoidRootPart")
+                            local e_hum = enemy:FindFirstChild("Humanoid")
+                            
+                            if e_hrp and e_hum and e_hum.Health > 0 then
+                                local dist = (hrp.Position - e_hrp.Position).Magnitude
+                                if dist < 30 then
+                                    -- ریموت اصلی حمله در Blox Fruits
+                                    game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("Attack")
+                                    
+                                    -- لرزش دوربین یا افکت کلیک (اختیاری برای پایداری)
+                                    -- game:GetService("VirtualUser"):ClickButton1(Vector2.new(0,0))
+                                end
+                            end
+                        end
+                    end
+                    task.wait(0.1) -- سرعت حمله (کمتر = سریع‌تر)
+                end
+            end)        end
     end
 })
