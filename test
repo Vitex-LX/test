@@ -3,7 +3,7 @@ local WindUI = loadstring(game:HttpGet(
 ))()
 
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub | v1.1.0,
+    Title  = "Vitex Hub | v1.1.0",
     Icon   = "worm",
     Author = "by Vitex",
     Theme  = "Dark",
@@ -12,7 +12,7 @@ local Window = WindUI:CreateWindow({
 
 local Practical = Window:Tab({
     Title = "کاربردی",
-    Icon = "fire",
+    Icon = "flame",
 })
 Practical:Select()
 
@@ -24,6 +24,6 @@ local Speed = Practical:Slider({
         Default = 20
     },
     Callback = function(value)
-        game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", Value)
+        game.Players.LocalPlayer.Character:SetAttribute("SpeedMultiplier", value)
     end
 })
