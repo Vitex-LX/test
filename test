@@ -11,10 +11,10 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.kos.0",
+    Title = "v1.kir.0",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
-    Radius = 0, -- from 0 to 13
+    Radius = 0,
 })
 
 local Practical = Window:Tab({
@@ -24,7 +24,7 @@ local Practical = Window:Tab({
 Practical:Select()
 
 local WalkSpeed = Practical:Slider({
-    Title = "سرعت راه رفتن",
+    Title = "سرعت راه‌رفتن",
     Value = {
         Min = 50,
         Max = 500,
@@ -78,23 +78,22 @@ local locations = {
 local tweenService = game:GetService("TweenService")
 local player = game.Players.LocalPlayer
 
--- تابع اصلی تلپورت هوشمند
+
 local function safeTeleport(targetCFrame)
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     
     local hrp = character.HumanoidRootPart
     local distance = (targetCFrame.Position - hrp.Position).Magnitude
-    local speed = 250 -- سرعت بهینه برای جلوگیری از شناسایی آنتی‌چیت (قابل تغییر)
+    local speed = 250
     local duration = distance / speed
 
-    -- ایجاد حالت شناور برای جلوگیری از لرزش و سقوط
     local bv = Instance.new("BodyVelocity")
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Parent = hrp
 
-    -- فعال سازی Noclip برای عبور از موانع
+
     local noclipLoop = game:GetService("RunService").Stepped:Connect(function()
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -110,7 +109,7 @@ local function safeTeleport(targetCFrame)
     tween.Completed:Connect(function()
         bv:Destroy()
         noclipLoop:Disconnect()
-        -- فعال سازی مجدد برخورد
+
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
@@ -118,7 +117,7 @@ local function safeTeleport(targetCFrame)
     end)
 end
 
--- جایگزین کردن در حلقه‌ی دکمه‌ها
+
 for _, location in ipairs(locations) do
     TeleportSection:Button({
         Title = location.name,
@@ -137,8 +136,8 @@ WaterPart.CanCollide = false
 WaterPart.Parent = workspace
 
 local WaterWalk = Practical:Toggle({
-    Title = "Walk on Water",
-    Value = false,
+    Title = "راه‌رفتن روی آب",
+    Value = true,
     Callback = function(value)
         _G.WaterWalk = value
                 if value then
@@ -149,12 +148,11 @@ local WaterWalk = Practical:Toggle({
                     local hum = char and char:FindFirstChild("Humanoid")
                     
                     if hrp and hum then
-                        -- تشخیص سطح آب یا ارتفاع مناسب
-                        -- در اکثر مناطق Blox Fruits سطح آب حدوداً 0 یا کمی پایین‌تر است
+
                         WaterPart.CanCollide = true
-                        WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z) -- عدد 0 ارتفاع آب است
+                        WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
                         
-                        -- جلوگیری از انیمیشن شنا
+
                         if hum:GetState() == Enum.HumanoidStateType.Swimming then
                             hum:ChangeState(Enum.HumanoidStateType.Running)
                         end
