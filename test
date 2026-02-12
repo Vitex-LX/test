@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "v1.23.0",
+    Title = "v1.266.0",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0, -- from 0 to 13
@@ -111,51 +111,41 @@ for _, location in ipairs(locations) do
 end
 
 
+local WaterPart = Instance.new("Part")
+WaterPart.Size = Vector3.new(10, 1, 10)
+WaterPart.Transparency = 1
+WaterPart.Anchored = true
+WaterPart.CanCollide = false
+WaterPart.Parent = workspace
+
 local WaterWalk = Practical:Toggle({
     Title = "Walk on Water",
     Value = false,
     Callback = function(value)
-        local player = game.Players.LocalPlayer
-        local character = player.Character
-        local hrp = character:WaitForChild("HumanoidRootPart")
-        local humanoid = character:WaitForChild("Humanoid")
-
-        if value then
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
-
-            local bp = Instance.new("BodyPosition")
-            bp.Name = "WaterWalkBP"
-            bp.MaxForce = Vector3.new(0, math.huge, 0)
-            bp.D = 500
-            bp.P = 5000
-            bp.Parent = hrp
-
+        _G.WaterWalk = value
+                if value then
             task.spawn(function()
-                while value and bp and bp.Parent do
-                    -- هر فریم Y رو روی سطح آب (Y=0 یا هر ارتفاعی که آب هست) تنظیم کن
-                    local waterY = hrp.Position.Y
+                while _G.WaterWalk do
+                    local char = game.Players.LocalPlayer.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    local hum = char and char:FindFirstChild("Humanoid")
                     
-                    -- چک کن زیر آب رفتی یا نه
-                    local rayDown = workspace:Raycast(
-                        hrp.Position,
-                        Vector3.new(0, -10, 0),
-                        RaycastParams.new()
-                    )
-                    
-                    if humanoid:GetState() == Enum.HumanoidStateType.Swimming then
-                        humanoid:ChangeState(Enum.HumanoidStateType.Running)
-                        bp.Position = Vector3.new(hrp.Position.X, hrp.Position.Y + 3, hrp.Position.Z)
-                    else
-                        bp.MaxForce = Vector3.zero
+                    if hrp and hum then
+                        -- تشخیص سطح آب یا ارتفاع مناسب
+                        -- در اکثر مناطق Blox Fruits سطح آب حدوداً 0 یا کمی پایین‌تر است
+                        WaterPart.CanCollide = true
+                        WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z) -- عدد 0 ارتفاع آب است
+                        
+                        -- جلوگیری از انیمیشن شنا
+                        if hum:GetState() == Enum.HumanoidStateType.Swimming then
+                            hum:ChangeState(Enum.HumanoidStateType.Running)
+                        end
                     end
-                    
                     task.wait()
                 end
-            end)
-        else
-            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
-            local bp = hrp:FindFirstChild("WaterWalkBP")
-            if bp then bp:Destroy() end
+                WaterPart.CanCollide = false
+            end)        else
+            WaterPart.CanCollide = false
         end
     end
 })
