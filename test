@@ -104,3 +104,42 @@ for _, location in ipairs(locations) do
         end,
     })
 end
+
+
+local WaterWalk = Practical:Toggle({
+    Title = "راه رفتن روی آب",
+    Value = false,
+    Callback = function(value)
+        local player = game.Players.LocalPlayer
+        local character = player.Character
+        local hrp = character:WaitForChild("HumanoidRootPart")
+        local humanoid = character:WaitForChild("Humanoid")
+
+        if value then
+            -- غیرفعال کردن حالت شنا
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+
+            -- نگه داشتن Y روی سطح آب
+            local bp = Instance.new("BodyPosition")
+            bp.Name = "WaterWalkBP"
+            bp.MaxForce = Vector3.new(0, math.huge, 0)
+            bp.D = 1000
+            bp.P = 10000
+            bp.Parent = hrp
+
+            -- آپدیت مداوم Y
+            task.spawn(function()
+                while value and bp and bp.Parent do
+                    bp.Position = Vector3.new(hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
+                    task.wait()
+                end
+            end)
+        else
+            -- برگردوندن همه چیز به حالت نرمال
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Swimming, true)
+            local bp = hrp:FindFirstChild("WaterWalkBP")
+            if bp then bp:Destroy() end
+        end
+    end
+})
