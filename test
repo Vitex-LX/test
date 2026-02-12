@@ -18,4 +18,5 @@ local Tab = Window:Tab({
     Title = "کاربردی",
     Icon = "bird", -- optional
     Locked = false,
+
 })
