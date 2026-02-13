@@ -266,6 +266,49 @@ local function ManageESP(object, text, color, tag, state)
     end
 end
 
+
+local EspTab = Window:Tab({
+    Title = "ESP"
+})
+
+-- تابع کمکی برای مدیریت ظاهر و فاصله ESP
+local function ManageESP(object, text, color, tag, state)
+    local uiName = "ESP_" .. tag    if state then
+        if not object:FindFirstChild(uiName) then
+            local billboard = Instance.new("BillboardGui")
+            billboard.Name = uiName
+            billboard.AlwaysOnTop = true
+            billboard.Size = UDim2.new(0, 150, 0, 20)
+            billboard.ExtentsOffsetWorldSpace = Vector3.new(0, 2, 0)
+            billboard.Parent = object
+
+            local label = Instance.new("TextLabel")            label.Parent = billboard
+            label.BackgroundTransparency = 1
+            label.Size = UDim2.new(1, 0, 1, 0)
+            label.Text = text
+            label.TextColor3 = color
+            label.TextSize = 11
+            label.Font = Enum.Font.RobotoMono
+            label.TextStrokeTransparency = 0.5
+            
+            task.spawn(function()
+                while object and object.Parent and billboard and billboard.Parent do
+                    local char = game.Players.LocalPlayer.Character
+                    if char and char:FindFirstChild("HumanoidRootPart") then
+                        local dist = math.floor((object.Position - char.HumanoidRootPart.Position).Magnitude)
+                        label.Text = string.format("%s [%dm]", text, dist)
+                    end
+                    task.wait(0.5)
+                end
+            end)
+        end
+    else
+        if object:FindFirstChild(uiName) then
+            object[uiName]:Destroy()
+        end
+    end
+end
+
 local function FullCleanup(tag)
     local name = "ESP_" .. tag
     for _, v in pairs(workspace:GetDescendants()) do
@@ -273,14 +316,12 @@ local function FullCleanup(tag)
     end
 end
 
-local PlayerESP = Practical:Toggle({
+-- Toggles in ESP Tab
+local PlayerESP = EspTab:Toggle({
     Title = "ESP Players",
     Callback = function(state)
         _G.ESP_Players = state
-        if not state then
-            FullCleanup("Player")
-        end
-
+        if not state then FullCleanup("Player") end
         task.spawn(function()
             while _G.ESP_Players do
                 for _, p in pairs(game.Players:GetPlayers()) do
@@ -294,7 +335,7 @@ local PlayerESP = Practical:Toggle({
     end
 })
 
-ChestESP = Practical:Toggle({
+local ChestESP = EspTab:Toggle({
     Title = "ESP Chests",
     Callback = function(state)
         _G.ESP_Chests = state
@@ -302,17 +343,16 @@ ChestESP = Practical:Toggle({
         task.spawn(function()
             while _G.ESP_Chests do
                 for _, v in pairs(workspace:GetChildren()) do
-                    if v.Name:find("Chest") and v:IsA("BasePart") then
+                    if v.Name:find("Chest") and v:IsA("BasePart") and v.Transparency < 1 then
                         ManageESP(v, "Chest", Color3.fromRGB(255, 255, 100), "Chest", true)
                     end
-                end
-                task.wait(2)
+                end                task.wait(2)
             end
         end)
     end
 })
 
-local IslandESP = Practical:Toggle({
+local IslandESP = EspTab:Toggle({
     Title = "ESP Islands",
     Callback = function(state)
         _G.ESP_Islands = state
@@ -333,7 +373,7 @@ local IslandESP = Practical:Toggle({
     end
 })
 
-local FruitESP = Practical:Toggle({
+local FruitESP = EspTab:Toggle({
     Title = "ESP Fruits",
     Callback = function(state)
         _G.ESP_Fruits = state
