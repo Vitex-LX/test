@@ -184,3 +184,47 @@ local WaterWalk = Practical:Toggle({
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
+
+local Toggle = Practical:Toggle({
+    Title = "Fast Attack / Kill Aura",
+    Callback = function(state)
+        _G.FastAttack = state
+        
+        task.spawn(function()
+            local Net = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net")
+            local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
+            local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+            
+            while _G.FastAttack do
+                pcall(function()
+                    local character = game.Players.LocalPlayer.Character
+                    local root = character and character:FindFirstChild("HumanoidRootPart")
+                    
+                    if root and character:FindFirstChildOfClass("Tool") then
+                        -- اجرای انیمیشن حمله
+                        RegisterAttack:FireServer(0.4)
+                        
+                        -- پیدا کردن دشمنان و ثبت ضربه (Kill Aura)
+                        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
+                            local humanoid = enemy:FindFirstChild("Humanoid")
+                            
+                            if enemyRoot and humanoid and humanoid.Health > 0 then
+                                local dist = (enemyRoot.Position - root.Position).Magnitude
+                                if dist < 60 then
+                                    -- استفاده از اطلاعاتی که فرستادید برای ثبت ضربه
+                                    local args = {
+                                        [1] = enemyRoot,
+                                        [2] = {enemy},
+                                        [4] = "694ba46d" -- کد هش اختصاصی که فرستادید
+                                    }
+                                    RegisterHit:FireServer(unpack(args))
+                                end
+                            end
+                        end
+                    end
+                end)
+                task.wait(0.1) -- سرعت حمله (قابل تغییر)
+            end
+        end)
+    end})
