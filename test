@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-f9xedmahdih",
+    Title = "Beta-kos",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -176,7 +176,7 @@ if WaterWalk.Value then
 end
 
 local Toggle = Practical:Toggle({
-    Title = "حمله خودکار)",
+    Title = "حمله خودکار",
     Callback = function(state)
         _G.FastAttack = state
         
