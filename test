@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kooooooooos",
+    Title = "Beta-kos",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -184,83 +184,3 @@ local WaterWalk = Practical:Toggle({
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
-
-local KillAuraEnabled = false
-local KillAuraRange = 15
-
-local KillAura = Practical:Toggle({
-    Title = "Kill Aura",
-    Callback = function(state)
-        KillAuraEnabled = state
-        if state then
-            task.spawn(function()
-                while KillAuraEnabled do
-                    local player = game.Players.LocalPlayer
-                    local character = player.Character
-                    local hrp = character and character:FindFirstChild("HumanoidRootPart")
-
-                    if hrp then
-                        -- Attack nearby players
-                        for _, otherPlayer in ipairs(game.Players:GetPlayers()) do
-                            if otherPlayer ~= player then
-                                local otherChar = otherPlayer.Character
-                                local otherHRP = otherChar and otherChar:FindFirstChild("HumanoidRootPart")
-                                local otherHum = otherChar and otherChar:FindFirstChild("Humanoid")
-
-                                if otherHRP and otherHum and otherHum.Health > 0 then
-                                    local dist = (hrp.Position - otherHRP.Position).Magnitude
-                                    if dist <= KillAuraRange then
-                                        -- Face target and fire M1
-                                        hrp.CFrame = CFrame.lookAt(hrp.Position, otherHRP.Position)
-                                        local tool = character:FindFirstChildWhichIsA("Tool")
-                                        if tool then
-                                            local remoteFn = tool:FindFirstChild("RemoteFunction") or tool:FindFirstChild("RemoteEvent")
-                                            if remoteFn then
-                                                if remoteFn:IsA("RemoteEvent") then
-                                                    remoteFn:FireServer(otherHRP.Position)
-                                                elseif remoteFn:IsA("RemoteFunction") then
-                                                    remoteFn:InvokeServer(otherHRP.Position)
-                                                end
-                                            end
-                                        end
-                                        -- Simulate M1 click via touch/activate
-                                        local mouseEvent = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                                        if mouseEvent then
-                                            local m1 = mouseEvent:FindFirstChild("M1Click") or mouseEvent:FindFirstChild("Attack")
-                                            if m1 and m1:IsA("RemoteEvent") then
-                                                m1:FireServer(otherHRP.Position, otherHRP.CFrame)
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-
-                        -- Attack nearby NPCs
-                        for _, obj in ipairs(workspace:GetDescendants()) do
-                            if obj:IsA("Model") and obj ~= character then
-                                local npcHRP = obj:FindFirstChild("HumanoidRootPart")
-                                local npcHum = obj:FindFirstChild("Humanoid")
-                                if npcHRP and npcHum and npcHum.Health > 0 then
-                                    local dist = (hrp.Position - npcHRP.Position).Magnitude
-                                    if dist <= KillAuraRange then
-                                        hrp.CFrame = CFrame.lookAt(hrp.Position, npcHRP.Position)
-                                        local mouseEvent = game:GetService("ReplicatedStorage"):FindFirstChild("Remotes")
-                                        if mouseEvent then
-                                            local m1 = mouseEvent:FindFirstChild("M1Click") or mouseEvent:FindFirstChild("Attack")
-                                            if m1 and m1:IsA("RemoteEvent") then
-                                                m1:FireServer(npcHRP.Position, npcHRP.CFrame)
-                                            end
-                                        end
-                                    end
-                                end
-                            end
-                        end
-                    end
-
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end
-})
