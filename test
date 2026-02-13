@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kobs",
+    Title = "Beta-kiri",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -340,36 +340,26 @@ local PlayerESP = EspTab:Toggle({
 })
 
 local ChestESP = EspTab:Toggle({
-    Title = "ESP Chests",
+    Title = "ESP Chests (Deep Scan)",
     Callback = function(state)
         _G.ESP_Chests = state
         if not state then FullCleanup("Chest") end
         task.spawn(function()
             while _G.ESP_Chests do
                 pcall(function()
-                    local mapFolder = workspace:FindFirstChild("Map")
-                    if mapFolder then
-                        for _, island in pairs(mapFolder:GetChildren()) do
-                            -- پیدا کردن پوشه chests یا Chests داخل هر جزیره
-                            local chestsFolder = island:FindFirstChild("chests") or island:FindFirstChild("Chests")
-                            if chestsFolder then
-                                for _, v in pairs(chestsFolder:GetChildren()) do                                    -- بررسی اینکه شیء یک Part باشد و نامش شامل Chest باشد
-                                    if v:IsA("BasePart") and v.Name:find("Chest") then
-                                        if v.Transparency < 1 then                                            -- تشخیص سطح چست برای رنگ‌بندی
-                                            local color = Color3.fromRGB(255, 255, 100) -- پیش‌فرض زرد
-                                            if v.Name:find("3") then color = Color3.fromRGB(0, 255, 255) end -- چست ۳ آبی
-                                            
-                                            ManageESP(v, "Chest", color, "Chest", true)
-                                        else
-                                            -- حذف ESP اگر چست باز شده بود
-                                            if v:FindFirstChild("ESP_Chest") then v.ESP_Chest:Destroy() end
-                                        end
-                                    end                                end
+                    -- جستجوی کل محیط بازی برای پیدا کردن چست‌های لود شده
+                    for _, v in pairs(workspace:GetDescendants()) do
+                        if v:IsA("BasePart") and v.Name:find("Chest") then
+                            if v.Transparency < 1 then
+                                ManageESP(v, "Chest", Color3.fromRGB(255, 255, 100), "Chest", true)
+                            else
+                                if v:FindFirstChild("ESP_Chest") then v.ESP_Chest:Destroy() end
                             end
                         end
                     end
                 end)
-                task.wait(3)            end
+                task.wait(4) -- اسکن عمیق سنگین است، زمان انتظار بیشتر برای جلوگیری از لگ
+            end
         end)
     end
 })
@@ -412,6 +402,44 @@ local FruitESP = EspTab:Toggle({
                     end
                 end
                 task.wait(2)
+            end
+        end)
+    end
+})
+
+local AutoChest = Practical:Toggle({
+    Title = "Auto Collect Chests (Tween)",
+    Callback = function(state)
+        _G.AutoChest = state
+        task.spawn(function()
+            while _G.AutoChest do
+                local char = game.Players.LocalPlayer.Character
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if root then
+                    -- پیدا کردن تمام چست‌ها در کل مپ
+                    for _, v in pairs(workspace:GetDescendants()) do
+                        if _G.AutoChest == false then break end
+                        
+                        if v:IsA("BasePart") and v.Name:find("Chest") and v.Transparency < 1 then                            -- محاسبه زمان حرکت بر اساس فاصله (سرعت 300)
+                            local dist = (v.Position - root.Position).Magnitude
+                            local tweenInfo = TweenInfo.new(dist / 300, Enum.EasingStyle.Linear)
+                            local tween = game:GetService("TweenService"):Create(root, tweenInfo, {CFrame = v.CFrame})
+                            
+                            tween:Play()
+                            
+                            -- انتظار تا رسیدن به چست یا لغو تاگل
+                            local reached = false
+                            tween.Completed:Connect(function() reached = true end)
+                            
+                            repeat task.wait(0.1) until reached or not _G.AutoChest
+                            
+                            if not _G.AutoChest then tween:Cancel() break end
+                            task.wait(0.5) -- مکث کوتاه برای دریافت چست
+                        end
+                    end
+                end
+                task.wait(1)
             end
         end)
     end
