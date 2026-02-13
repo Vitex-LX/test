@@ -344,25 +344,30 @@ local ChestESP = EspTab:Toggle({
         if not state then FullCleanup("Chest") end
         task.spawn(function()
             while _G.ESP_Chests do
-                local mapFolder = workspace:FindFirstChild("Map")
-                if mapFolder then
-                    -- جستجو در تمام جزایر داخل پوشه Map
-                    for _, island in pairs(mapFolder:GetChildren()) do
-                        for _, v in pairs(island:GetChildren()) do
-                            -- بررسی نام چست و شفافیت آن (باز نشده باشد)
-                            if v.Name:find("Chest") and v:IsA("BasePart") then
-                                if v.Transparency < 1 then
-                                    ManageESP(v, "Chest", Color3.fromRGB(255, 255, 100), "Chest", true)
-                                else
-                                    -- اگر چست باز شده بود، ESP همان چست را حذف کن
-                                    if v:FindFirstChild("ESP_Chest") then v.ESP_Chest:Destroy() end
-                                end
+                pcall(function()
+                    local mapFolder = workspace:FindFirstChild("Map")
+                    if mapFolder then
+                        for _, island in pairs(mapFolder:GetChildren()) do
+                            -- پیدا کردن پوشه chests یا Chests داخل هر جزیره
+                            local chestsFolder = island:FindFirstChild("chests") or island:FindFirstChild("Chests")
+                            if chestsFolder then
+                                for _, v in pairs(chestsFolder:GetChildren()) do                                    -- بررسی اینکه شیء یک Part باشد و نامش شامل Chest باشد
+                                    if v:IsA("BasePart") and v.Name:find("Chest") then
+                                        if v.Transparency < 1 then                                            -- تشخیص سطح چست برای رنگ‌بندی
+                                            local color = Color3.fromRGB(255, 255, 100) -- پیش‌فرض زرد
+                                            if v.Name:find("3") then color = Color3.fromRGB(0, 255, 255) end -- چست ۳ آبی
+                                            
+                                            ManageESP(v, "Chest", color, "Chest", true)
+                                        else
+                                            -- حذف ESP اگر چست باز شده بود
+                                            if v:FindFirstChild("ESP_Chest") then v.ESP_Chest:Destroy() end
+                                        end
+                                    end                                end
                             end
                         end
                     end
-                end
-                task.wait(2)
-            end
+                end)
+                task.wait(3)            end
         end)
     end
 })
