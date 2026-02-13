@@ -226,46 +226,6 @@ local Toggle = Practical:Toggle({
     end
 })
 
-local function ManageESP(object, text, color, tag, state)
-    local uiName = "ESP_" .. tag
-    if state then
-        if not object:FindFirstChild(uiName) then
-            local billboard = Instance.new("BillboardGui")
-            billboard.Name = uiName
-            billboard.AlwaysOnTop = true
-            billboard.Size = UDim2.new(0, 150, 0, 20)
-            billboard.ExtentsOffsetWorldSpace = Vector3.new(0, 2, 0)
-            billboard.Parent = object
-
-            local label = Instance.new("TextLabel")
-            label.Parent = billboard
-        
-            label.BackgroundTransparency = 1
-            label.Size = UDim2.new(1, 0, 1, 0)
-            label.Text = text
-            label.TextColor3 = color
-            label.TextSize = 11
-            label.Font = Enum.Font.RobotoMono
-            label.TextStrokeTransparency = 0.5
-            
-            task.spawn(function()
-                while object and object.Parent and billboard and billboard.Parent do
-                    local char = game.Players.LocalPlayer.Character
-                    if char and char:FindFirstChild("HumanoidRootPart") then
-                        local dist = math.floor((object.Position - char.HumanoidRootPart.Position).Magnitude)
-                        label.Text = string.format("%s [%dm]", text, dist)
-                    end
-                    task.wait(0.5)
-                end
-            end)
-        end
-    else
-        if object:FindFirstChild(uiName) then
-            object[uiName]:Destroy()
-        end
-    end
-end
-
 
 local EspTab = Window:Tab({
     Title = "ESP",
