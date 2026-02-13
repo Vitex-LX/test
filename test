@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kiri",
+    Title = "Beta-kos",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -273,7 +273,7 @@ local EspTab = Window:Tab({
 })
 
 
--- تابع کمکی برای مدیریت ظاهر و فاصله ESP
+
 local function ManageESP(object, text, color, tag, state)
     local uiName = "ESP_" .. tag
     if state then
@@ -339,30 +339,6 @@ local PlayerESP = EspTab:Toggle({
     end
 })
 
-local ChestESP = EspTab:Toggle({
-    Title = "ESP Chests (Deep Scan)",
-    Callback = function(state)
-        _G.ESP_Chests = state
-        if not state then FullCleanup("Chest") end
-        task.spawn(function()
-            while _G.ESP_Chests do
-                pcall(function()
-                    -- جستجوی کل محیط بازی برای پیدا کردن چست‌های لود شده
-                    for _, v in pairs(workspace:GetDescendants()) do
-                        if v:IsA("BasePart") and v.Name:find("Chest") then
-                            if v.Transparency < 1 then
-                                ManageESP(v, "Chest", Color3.fromRGB(255, 255, 100), "Chest", true)
-                            else
-                                if v:FindFirstChild("ESP_Chest") then v.ESP_Chest:Destroy() end
-                            end
-                        end
-                    end
-                end)
-                task.wait(4) -- اسکن عمیق سنگین است، زمان انتظار بیشتر برای جلوگیری از لگ
-            end
-        end)
-    end
-})
 
 local IslandESP = EspTab:Toggle({
     Title = "ESP Islands",
@@ -407,39 +383,83 @@ local FruitESP = EspTab:Toggle({
     end
 })
 
-local AutoChest = Practical:Toggle({
-    Title = "Auto Collect Chests (Tween)",
+
+local FruitTab = Window:Tab({
+    Title = "میوه"
+    Icon = "banana"
+})
+
+local function teleportToFruit(targetCFrame)
+    local character = game.Players.LocalPlayer.Character
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
+    
+    local hrp = character.HumanoidRootPart
+    local distance = (targetCFrame.Position - hrp.Position).Magnitude
+    local speed = 250 -- سرعت طبق سورس شما
+    local duration = distance / speed
+
+    -- جلوگیری از لرزش و افتادن
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = Vector3.new(0, 0, 0)
+    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    bv.Parent = hrp
+
+    -- حالت Noclip
+    local noclipLoop = game:GetService("RunService").Stepped:Connect(function()        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end)
+
+    local tween = game:GetService("TweenService"):Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+    
+    tween:Play()
+    
+    local reached = false
+    tween.Completed:Connect(function()
+        bv:Destroy()
+        noclipLoop:Disconnect()        reached = true
+    end)
+
+    -- منتظر ماندن تا رسیدن یا خاموش کردن تاگل    repeat task.wait(0.1) until reached or not _G.AutoFruit
+    
+    if not _G.AutoFruit then 
+        tween:Cancel() 
+        bv:Destroy()
+        noclipLoop:Disconnect()
+    end
+end
+
+local AutoFruit = FruitTab:Toggle({
+    Title = "تلپورت به میوه‌ها",
     Callback = function(state)
-        _G.AutoChest = state
+        _G.AutoFruit = state
+        
         task.spawn(function()
-            while _G.AutoChest do
-                local char = game.Players.LocalPlayer.Character
-                local root = char and char:FindFirstChild("HumanoidRootPart")
+            while _G.AutoFruit do
+                local fruitFound = false
                 
-                if root then
-                    -- پیدا کردن تمام چست‌ها در کل مپ
-                    for _, v in pairs(workspace:GetDescendants()) do
-                        if _G.AutoChest == false then break end
+                for _, v in pairs(workspace:GetChildren()) do
+                    if not _G.AutoFruit then break end                    
+                    -- پیدا کردن میوه (Tool یا Model)
+                    if (v:IsA("Tool") or v:IsA("Model")) and v.Name:find("Fruit") then
+                        local handle = v:FindFirstChild("Handle") or v:FindFirstChildOfClass("BasePart")
                         
-                        if v:IsA("BasePart") and v.Name:find("Chest") and v.Transparency < 1 then                            -- محاسبه زمان حرکت بر اساس فاصله (سرعت 300)
-                            local dist = (v.Position - root.Position).Magnitude
-                            local tweenInfo = TweenInfo.new(dist / 300, Enum.EasingStyle.Linear)
-                            local tween = game:GetService("TweenService"):Create(root, tweenInfo, {CFrame = v.CFrame})
-                            
-                            tween:Play()
-                            
-                            -- انتظار تا رسیدن به چست یا لغو تاگل
-                            local reached = false
-                            tween.Completed:Connect(function() reached = true end)
-                            
-                            repeat task.wait(0.1) until reached or not _G.AutoChest
-                            
-                            if not _G.AutoChest then tween:Cancel() break end
-                            task.wait(0.5) -- مکث کوتاه برای دریافت چست
+                        if handle then
+                            fruitFound = true
+                            -- تلپورت به موقعیت میوه
+                            teleportToFruit(handle.CFrame)
+                            task.wait(1) -- مکث برای برداشتن میوه
                         end
                     end
                 end
-                task.wait(1)
+                
+                if not fruitFound then
+                    -- اگر میوه‌ای نبود، هر 5 ثانیه چک کن
+                    task.wait(5)
+                end
+                task.wait(0.1)
             end
         end)
     end
