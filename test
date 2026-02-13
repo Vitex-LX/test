@@ -175,69 +175,93 @@ if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
 
+local CombatData = {
+    Remote = nil,
+    Prefix = nil,
+    ID = nil,
+    Hash = nil,
+    Method = "None"
+}
+
+-- [[ هوش مصنوعی شناسایی ریموت ]]
+local mt = getrawmetatable(game)
+local oldNamecall = mt.__namecall
+setreadonly(mt, false)
+
+mt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if method == "FireServer" and not checkcaller() then
+        -- شناسایی متد جدید (مثل ریموت‌های عددی 785، 874 و غیره)
+        if type(args[1]) == "string" and type(args[2]) == "number" and type(args[6]) == "string" then
+            CombatData.Remote = self
+            CombatData.Prefix = args[1]
+            CombatData.ID = args[2]
+            CombatData.Hash = args[6]
+            CombatData.Method = "Dynamic"        -- شناسایی متد قدیمی (RegisterHit)
+        elseif self.Name == "RE/RegisterHit" then
+            CombatData.Remote = self
+            CombatData.Hash = args[4]
+            CombatData.Method = "Legacy"
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+
 local Toggle = Practical:Toggle({
-    Title = "حمله خودکار",
+    Title = "Fast Attack / Kill Aura",
     Callback = function(state)
         _G.FastAttack = state
         
-        task.spawn(function()
-            local lp = game.Players.LocalPlayer
-            local ReplicatedStorage = game:GetService("ReplicatedStorage")
-            
-            -- شناسایی ریموت‌های موجود
-            local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
-            local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
-            local RegisterHit = Net and Net:FindFirstChild("RE/RegisterHit")
-            
-            local Remote874 = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("874")
-            
-            while _G.FastAttack do                pcall(function()
+        task.spawn(function()            local lp = game.Players.LocalPlayer
+            while _G.FastAttack do
+                pcall(function()
                     local character = lp.Character
                     local root = character and character:FindFirstChild("HumanoidRootPart")
+                    local tool = character:FindFirstChildOfClass("Tool")
                     
-                    if root and character:FindFirstChildOfClass("Tool") then
-                        -- اجرای انیمیشن حمله (اگر ریموتش وجود داشت)
-                        if RegisterAttack then RegisterAttack:FireServer(0.4) end
+                    if root and tool and CombatData.Remote then
+                        -- اجرای انیمیشن کلیک
+                        game:GetService("ReplicatedStorage").RigControllerEvent:FireServer("weaponClick")
                         
-                        local function DamageTarget(targetModel)
-                            local targetRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
+                        local function Damage(targetModel)
+                            local tRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
                             local humanoid = targetModel:FindFirstChild("Humanoid")
                             
-                            if targetRoot and humanoid and humanoid.Health > 0 then
-                                if (targetRoot.Position - root.Position).Magnitude < 60 then
-                                    
-                                    -- متد اکانت شما
-                                    if RegisterHit then
-                                        RegisterHit:FireServer(targetRoot, {}, nil, "694ba46d")
-                                    end
-                                    
-                                    -- متد اکانت دوست شما
-                                    if Remote874 then
-                                        local args = {                                            [1] = "VA+VacmwpavLmp",
-                                            [2] = 13064117,
-                                            [3] = targetRoot,
-                                            [4] = {},
-                                            [6] = "869bada7"
-                                        }
-                                        Remote874:FireServer(unpack(args))
+                            if tRoot and humanoid and humanoid.Health > 0 then
+                                if (tRoot.Position - root.Position).Magnitude < 65 then
+                                    if CombatData.Method == "Dynamic" then
+                                        -- ارسال ریموت با ساختار متغیر (785/874)
+                                        CombatData.Remote:FireServer(
+                                            CombatData.Prefix,
+                                            CombatData.ID,
+                                            tRoot,
+                                            {},
+                                            nil,
+                                            CombatData.Hash
+                                        )
+                                    elseif CombatData.Method == "Legacy" then
+                                        -- ارسال ریموت با ساختار ثابت (RegisterHit)
+                                        CombatData.Remote:FireServer(tRoot, {}, nil, CombatData.Hash)
                                     end
                                 end
-                            end                        end
-
-                        -- اسکن NPCها
-                        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                            DamageTarget(enemy)
+                            end
                         end
 
-                        -- اسکن بازیکنان
+                        -- حمله به NPCها
+                        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+                            Damage(enemy)
+                        end
+                        -- حمله به بازیکنان
                         for _, player in pairs(game.Players:GetPlayers()) do
                             if player ~= lp and player.Character then
-                                DamageTarget(player.Character)
+                                Damage(player.Character)
                             end
                         end
                     end
                 end)
-                task.wait(0.1)
+                task.wait(0.1) -- سرعت حمله
             end
         end)
     end
