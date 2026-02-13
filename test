@@ -48,8 +48,6 @@ local Jump = Practical:Slider({
     end
 })
 
-
-
 local TeleportTab = Window:Tab({
     Title = "تلپورت",
     Icon = "map-pin",
@@ -78,7 +76,6 @@ local locations = {
 local tweenService = game:GetService("TweenService")
 local player = game.Players.LocalPlayer
 
-
 local function safeTeleport(targetCFrame)
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
@@ -92,7 +89,6 @@ local function safeTeleport(targetCFrame)
     bv.Velocity = Vector3.new(0, 0, 0)
     bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
     bv.Parent = hrp
-
 
     local noclipLoop = game:GetService("RunService").Stepped:Connect(function()
         for _, part in pairs(character:GetDescendants()) do
@@ -113,10 +109,10 @@ local function safeTeleport(targetCFrame)
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = true
-            end        end
+            end
+        end
     end)
 end
-
 
 for _, location in ipairs(locations) do
     TeleportSection:Button({
@@ -127,9 +123,8 @@ for _, location in ipairs(locations) do
     })
 end
 
-
 local WaterPart = Instance.new("Part")
-WaterPart.Size = Vector3.new(100, 0.5, 100) -- بسیار نازک
+WaterPart.Size = Vector3.new(100, 0.5, 100)
 WaterPart.Transparency = 1
 WaterPart.Anchored = true
 WaterPart.CanCollide = false
@@ -145,23 +140,18 @@ local function UpdateWaterWalk(value)
                 local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum then
-                    local waterLevel = -2 -- سطح آب
+                    local waterLevel = -2
                     local currentY = hrp.Position.Y
                     
-                    -- اگر زیر سطح آب رفتید، بلافاصله به بالا برگردانید
                     if currentY < waterLevel then
                         WaterPart.CanCollide = false
-                        -- نیروی قوی برای بیرون آمدن سریع
                         hrp.Velocity = Vector3.new(hrp.Velocity.X, 100, hrp.Velocity.Z)
                         hrp.CFrame = CFrame.new(hrp.Position.X, waterLevel + 0.5, hrp.Position.Z)
                     else
-                        -- قرارگیری دقیق روی سطح آب
                         WaterPart.CanCollide = true
-                        -- پارت دقیقاً روی 0 (سطح آب)
                         WaterPart.CFrame = CFrame.new(hrp.Position.X, -5, hrp.Position.Z)
                     end
                     
-                    -- جلوگیری از شنا
                     if hum:GetState() == Enum.HumanoidStateType.Swimming then
                         hum:ChangeState(Enum.HumanoidStateType.Running)
                     end
@@ -186,7 +176,7 @@ if WaterWalk.Value then
 end
 
 local Toggle = Practical:Toggle({
-    Title = "Fast Attack / Kill Aura",
+    Title = "حمله خودکار",
     Callback = function(state)
         _G.FastAttack = state
         
@@ -194,45 +184,48 @@ local Toggle = Practical:Toggle({
             local Net = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net")
             local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
             local RegisterHit = Net:WaitForChild("RE/RegisterHit")
+            local lp = game.Players.LocalPlayer
             
             while _G.FastAttack do
                 pcall(function()
-                    local character = game.Players.LocalPlayer.Character
+                    local character = lp.Character
                     local root = character and character:FindFirstChild("HumanoidRootPart")
                     
                     if root and character:FindFirstChildOfClass("Tool") then
-                        -- اجرای انیمیشن حمله
                         RegisterAttack:FireServer(0.4)
                         
-                        -- پیدا کردن دشمنان و ثبت ضربه (Kill Aura)
-                        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                            local enemyRoot = enemy:FindFirstChild("HumanoidRootPart")
-                            local humanoid = enemy:FindFirstChild("Humanoid")
-                            
-                            if enemyRoot and humanoid and humanoid.Health > 0 then
-                                local dist = (enemyRoot.Position - root.Position).Magnitude
-                                if dist < 60 then
-                                    -- استفاده از اطلاعاتی که فرستادید برای ثبت ضربه
+                        local function DamageTarget(targetModel)
+                            local targetRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
+                            local humanoid = targetModel:FindFirstChild("Humanoid")                            
+                            if targetRoot and humanoid and humanoid.Health > 0 then
+                                if (targetRoot.Position - root.Position).Magnitude < 60 then
                                     local args = {
-                                        [1] = enemyRoot,
-                                        [2] = {enemy},
-                                        [4] = "694ba46d" -- کد هش اختصاصی که فرستادید
+                                        [1] = targetRoot,
+                                        [2] = {},
+                                        [4] = "694ba46d"
                                     }
                                     RegisterHit:FireServer(unpack(args))
                                 end
                             end
                         end
+
+                        for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+                            DamageTarget(enemy)
+                        end
+
+                        for _, player in pairs(game.Players:GetPlayers()) do
+                            if player ~= lp and player.Character then
+                                DamageTarget(player.Character)
+                            end
+                        end
                     end
                 end)
-                task.wait(0.1) -- سرعت حمله (قابل تغییر)
+                task.wait(0.1)
             end
         end)
-    end})
+    end
+})
 
-
-
-    
-    -- تابع مرکزی برای مدیریت ESP با ظاهر تمیز
 local function ManageESP(object, text, color, tag, state)
     local uiName = "ESP_" .. tag
     if state then
@@ -241,7 +234,7 @@ local function ManageESP(object, text, color, tag, state)
             billboard.Name = uiName
             billboard.AlwaysOnTop = true
             billboard.Size = UDim2.new(0, 150, 0, 20)
-            billboard.ExtentsOffsetWorldSpace = Vector3.new(0, 2, 0) -- فاصله از سر آبجکت
+            billboard.ExtentsOffsetWorldSpace = Vector3.new(0, 2, 0)
             billboard.Parent = object
 
             local label = Instance.new("TextLabel")
@@ -251,11 +244,10 @@ local function ManageESP(object, text, color, tag, state)
             label.Size = UDim2.new(1, 0, 1, 0)
             label.Text = text
             label.TextColor3 = color
-            label.TextSize = 11 -- اندازه ریز و تمیز
-            label.Font = Enum.Font.RobotoMono -- فونت خوانا و باریک
-            label.TextStrokeTransparency = 0.5 -- سایه ملایم برای خوانایی
+            label.TextSize = 11
+            label.Font = Enum.Font.RobotoMono
+            label.TextStrokeTransparency = 0.5
             
-            -- آپدیت فاصله بصورت زنده
             task.spawn(function()
                 while object and object.Parent and billboard and billboard.Parent do
                     local char = game.Players.LocalPlayer.Character
@@ -274,7 +266,6 @@ local function ManageESP(object, text, color, tag, state)
     end
 end
 
--- تابع کمکی برای پاکسازی کلی یک تگ
 local function FullCleanup(tag)
     local name = "ESP_" .. tag
     for _, v in pairs(workspace:GetDescendants()) do
@@ -282,11 +273,14 @@ local function FullCleanup(tag)
     end
 end
 
--- 1. ESP Players
 local PlayerESP = Practical:Toggle({
     Title = "ESP Players",
     Callback = function(state)
-        _G.ESP_Players = state        if not state then FullCleanup("Player") end
+        _G.ESP_Players = state
+        if not state then
+            FullCleanup("Player")
+        end
+
         task.spawn(function()
             while _G.ESP_Players do
                 for _, p in pairs(game.Players:GetPlayers()) do
@@ -300,7 +294,7 @@ local PlayerESP = Practical:Toggle({
     end
 })
 
-    ChestESP = Practical:Toggle({
+ChestESP = Practical:Toggle({
     Title = "ESP Chests",
     Callback = function(state)
         _G.ESP_Chests = state
@@ -318,16 +312,16 @@ local PlayerESP = Practical:Toggle({
     end
 })
 
--- 3. ESP Islands (بدون نمایش Sea)
 local IslandESP = Practical:Toggle({
-    Title = "ESP Islands",    Callback = function(state)
+    Title = "ESP Islands",
+    Callback = function(state)
         _G.ESP_Islands = state
         if not state then FullCleanup("Island") end
         task.spawn(function()
             while _G.ESP_Islands do
                 local locs = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations")
                 if locs then
-                    for _, v in pairs(locs:GetChildren()) do                        -- فیلتر کردن کلمه Sea
+                    for _, v in pairs(locs:GetChildren()) do
                         if not v.Name:find("Sea") then
                             ManageESP(v, v.Name, Color3.fromRGB(100, 255, 255), "Island", true)
                         end
@@ -339,19 +333,18 @@ local IslandESP = Practical:Toggle({
     end
 })
 
--- 4. ESP Fruits (با اسم دقیق میوه)
 local FruitESP = Practical:Toggle({
     Title = "ESP Fruits",
     Callback = function(state)
         _G.ESP_Fruits = state
-        if not state then FullCleanup("Fruit") end        task.spawn(function()
+        if not state then FullCleanup("Fruit") end
+        task.spawn(function()
             while _G.ESP_Fruits do
                 for _, v in pairs(workspace:GetChildren()) do
                     local isFruit = v.Name:find("Fruit") or v:FindFirstChild("Fruit")
                     local handle = v:IsA("Tool") and v:FindFirstChild("Handle") or v:IsA("Model") and v:FindFirstChildOfClass("BasePart")
                     
                     if isFruit and handle then
-                        -- نمایش نام دقیق میوه (مثلاً Flame Fruit)
                         local fruitName = v.Name:gsub("Physical ", ""):gsub(" Fruit", "")
                         ManageESP(handle, "🍎 " .. fruitName, Color3.fromRGB(100, 255, 100), "Fruit", true)
                     end
