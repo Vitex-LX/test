@@ -145,7 +145,7 @@ local function UpdateWaterWalk(value)
                 local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum then
-                    local waterLevel = 0 -- سطح آب
+                    local waterLevel = -2 -- سطح آب
                     local currentY = hrp.Position.Y
                     
                     -- اگر زیر سطح آب رفتید، بلافاصله به بالا برگردانید
@@ -158,7 +158,7 @@ local function UpdateWaterWalk(value)
                         -- قرارگیری دقیق روی سطح آب
                         WaterPart.CanCollide = true
                         -- پارت دقیقاً روی 0 (سطح آب)
-                        WaterPart.CFrame = CFrame.new(hrp.Position.X, 0, hrp.Position.Z)
+                        WaterPart.CFrame = CFrame.new(hrp.Position.X, -1, hrp.Position.Z)
                     end
                     
                     -- جلوگیری از شنا
@@ -184,44 +184,3 @@ local WaterWalk = Practical:Toggle({
 if WaterWalk.Value then
     UpdateWaterWalk(true)
 end
-
-
--- Kill Aura Toggle (WindUI / Practical tab)
-local KillAuraEnabled = false
-local KillAuraClickDelay = 0.06
-
-local vu = game:GetService("VirtualUser")
-
-assert(Practical, "Practical UI section not found. Make sure your WindUI 'Practical' section is available.")
-local KASection = Practical:Section({ Title = "Kill Aura" })
-
-local function defaultKillAuraStep()
-    pcall(function()
-        vu:CaptureController()
-        vu:Button1Down(Vector2.new(0, 0))
-        task.wait(0.02)
-        vu:Button1Up(Vector2.new(0, 0))
-    end)
-end
-
-local Auto = Practical:Toggle({
-    Title = "Kill Aura (M1 Auto)",
-    Value = false,
-    Callback = function(state)
-        KillAuraEnabled = state
-        if state then
-            task.spawn(function()
-                while KillAuraEnabled do
-                    -- If you have your full kill-aura logic, implement it in `performKillAuraStep()`.
-                    -- This toggle will call that function if present; otherwise it uses a safe default click.
-                    if type(performKillAuraStep) == "function" then
-                        pcall(performKillAuraStep)
-                    else
-                        pcall(defaultKillAuraStep)
-                    end
-                    task.wait(KillAuraClickDelay)
-                end
-            end)
-        end
-    end
-})
