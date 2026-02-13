@@ -385,8 +385,8 @@ local FruitESP = EspTab:Toggle({
 
 
 local FruitTab = Window:Tab({
-    Title = "میوه"
-    Icon = "banana"
+    Title = "میوه",
+    Icon = "banana",
 })
 
 local function teleportToFruit(targetCFrame)
