@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-koos",
+    Title = "Beta-kos",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -186,7 +186,7 @@ if WaterWalk.Value then
 end
 
 local Toggle = Practical:Toggle({
-    Title = "حمله خودکار",
+    Title = "Fast Attack / Kill Aura",
     Callback = function(state)
         _G.FastAttack = state
         
@@ -244,7 +244,9 @@ local function ManageESP(object, text, color, tag, state)
             billboard.ExtentsOffsetWorldSpace = Vector3.new(0, 2, 0) -- فاصله از سر آبجکت
             billboard.Parent = object
 
-            local label = Instance.new("TextLabel")            label.Parent = billboard
+            local label = Instance.new("TextLabel")
+            label.Parent = billboard
+        
             label.BackgroundTransparency = 1
             label.Size = UDim2.new(1, 0, 1, 0)
             label.Text = text
@@ -298,7 +300,7 @@ local PlayerESP = Practical:Toggle({
     end
 })
 
--- 2. ESP Chestslocal ChestESP = Practical:Toggle({
+    ChestESP = Practical:Toggle({
     Title = "ESP Chests",
     Callback = function(state)
         _G.ESP_Chests = state
