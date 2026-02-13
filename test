@@ -228,3 +228,121 @@ local Toggle = Practical:Toggle({
             end
         end)
     end})
+
+
+
+    -- تابع کمکی برای ایجاد متن ESP
+local function CreateESP(part, name, color)
+    if not part:FindFirstChild("ESP_UI") then
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESP_UI"
+        billboard.AlwaysOnTop = true
+        billboard.Size = UDim2.new(0, 100, 0, 50)
+        billboard.ExtentsOffset = Vector3.new(0, 3, 0)
+        billboard.Parent = part
+
+        local label = Instance.new("TextLabel")
+        label.Parent = billboard
+        label.BackgroundTransparency = 1
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.Text = name
+        label.TextColor3 = color
+        label.TextSize = 14
+        label.TextStrokeTransparency = 0
+    end
+end
+
+-- تابع حذف ESP
+local function RemoveESP(tag)
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v.Name == "ESP_UI" and v.Parent and (tag == "All" or v:FindFirstChild("TextLabel").Text:find(tag)) then
+            v:Destroy()
+        end
+    end
+end
+
+-- ESP Players
+local PlayerESP = Practical:Toggle({
+    Title = "ESP Players",
+    Callback = function(state)
+        _G.ESP_Players = state
+        if not state then RemoveESP("") end -- حذف همه در صورت خاموش شدن (نیاز به منطق دقیق‌تر برای تفکیک دارد)
+        task.spawn(function()
+            while _G.ESP_Players do
+                for _, p in pairs(game.Players:GetPlayers()) do
+                    if p ~= game.Players.LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                        CreateESP(p.Character.Head, p.Name, Color3.fromRGB(255, 0, 0))
+                    end
+                end
+                task.wait(2)
+            end
+        end)
+    end
+})
+
+-- ESP Chests
+local ChestESP = Practical:Toggle({
+    Title = "ESP Chests",
+    Callback = function(state)
+        _G.ESP_Chests = state
+        if not state then 
+            for _, v in pairs(workspace:GetChildren()) do 
+                if v.Name:find("Chest") and v:FindFirstChild("ESP_UI") then v.ESP_UI:Destroy() end 
+            end
+        end
+        task.spawn(function()
+            while _G.ESP_Chests do
+                for _, v in pairs(workspace:GetChildren()) do                    if v.Name:find("Chest") and v:IsA("BasePart") then
+                        CreateESP(v, "Chest", Color3.fromRGB(255, 255, 0))
+                    end
+                end
+                task.wait(5)
+            end
+        end)
+    end
+})
+
+-- ESP Islands
+local IslandESP = Practical:Toggle({
+    Title = "ESP Islands",
+    Callback = function(state)
+        _G.ESP_Islands = state
+        if not state then RemoveESP("Island") end        task.spawn(function()
+            while _G.ESP_Islands do
+                -- در Blox Fruits جزایر معمولاً در Locations یا مدل‌های بزرگ در Workspace هستند
+                local locs = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations")
+                if locs then
+                    for _, v in pairs(locs:GetChildren()) do
+                        CreateESP(v, v.Name, Color3.fromRGB(0, 255, 255))
+                    end
+                end
+                task.wait(10)
+            end
+        end)
+    end
+})
+
+-- ESP Fruits
+local FruitESP = Practical:Toggle({
+    Title = "ESP Fruits",
+    Callback = function(state)
+        _G.ESP_Fruits = state
+        if not state then 
+             for _, v in pairs(workspace:GetChildren()) do 
+                if v.Name:find("Fruit") and v:FindFirstChild("ESP_UI") then v.ESP_UI:Destroy() end 
+            end
+        end
+        task.spawn(function()            while _G.ESP_Fruits do
+                for _, v in pairs(workspace:GetChildren()) do                    if v:IsA("Tool") and v.Name:find("Fruit") then -- میوه‌های در دست یا روی زمین
+                        local handle = v:FindFirstChild("Handle")
+                        if handle then CreateESP(handle, "Fruit", Color3.fromRGB(0, 255, 0)) end
+                    elseif v:IsA("Model") and v.Name:find("Fruit") then -- میوه‌های اسپاون شده
+                        local part = v:FindFirstChildOfClass("BasePart")
+                        if part then CreateESP(part, "Fruit", Color3.fromRGB(0, 255, 0)) end
+                    end
+                end
+                task.wait(3)
+            end
+        end)
+    end
+})
