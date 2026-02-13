@@ -268,14 +268,16 @@ end
 
 
 local EspTab = Window:Tab({
-    Title = "ESP"
+    Title = "ESP",
     Icon = "eye",
-
 })
+
 
 -- تابع کمکی برای مدیریت ظاهر و فاصله ESP
 local function ManageESP(object, text, color, tag, state)
-    local uiName = "ESP_" .. tag    if state then
+    local uiName = "ESP_" .. tag
+    if state then
+
         if not object:FindFirstChild(uiName) then
             local billboard = Instance.new("BillboardGui")
             billboard.Name = uiName
@@ -414,4 +416,3 @@ local FruitESP = EspTab:Toggle({
         end)
     end
 })
-
