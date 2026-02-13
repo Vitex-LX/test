@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kos",
+    Title = "Beta-f9xedmahdih",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -176,43 +176,60 @@ if WaterWalk.Value then
 end
 
 local Toggle = Practical:Toggle({
-    Title = "حمله خودکار",
+    Title = "حمله خودکار)",
     Callback = function(state)
         _G.FastAttack = state
         
         task.spawn(function()
-            local Net = game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Net")
-            local RegisterAttack = Net:WaitForChild("RE/RegisterAttack")
-            local RegisterHit = Net:WaitForChild("RE/RegisterHit")
             local lp = game.Players.LocalPlayer
+            local ReplicatedStorage = game:GetService("ReplicatedStorage")
             
-            while _G.FastAttack do
-                pcall(function()
+            -- شناسایی ریموت‌های موجود
+            local Net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+            local RegisterAttack = Net and Net:FindFirstChild("RE/RegisterAttack")
+            local RegisterHit = Net and Net:FindFirstChild("RE/RegisterHit")
+            
+            local Remote874 = ReplicatedStorage:FindFirstChild("Remotes") and ReplicatedStorage.Remotes:FindFirstChild("874")
+            
+            while _G.FastAttack do                pcall(function()
                     local character = lp.Character
                     local root = character and character:FindFirstChild("HumanoidRootPart")
                     
                     if root and character:FindFirstChildOfClass("Tool") then
-                        RegisterAttack:FireServer(0.4)
+                        -- اجرای انیمیشن حمله (اگر ریموتش وجود داشت)
+                        if RegisterAttack then RegisterAttack:FireServer(0.4) end
                         
                         local function DamageTarget(targetModel)
                             local targetRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
-                            local humanoid = targetModel:FindFirstChild("Humanoid")                            
+                            local humanoid = targetModel:FindFirstChild("Humanoid")
+                            
                             if targetRoot and humanoid and humanoid.Health > 0 then
                                 if (targetRoot.Position - root.Position).Magnitude < 60 then
-                                    local args = {
-                                        [1] = targetRoot,
-                                        [2] = {},
-                                        [4] = "694ba46d"
-                                    }
-                                    RegisterHit:FireServer(unpack(args))
+                                    
+                                    -- متد اکانت شما
+                                    if RegisterHit then
+                                        RegisterHit:FireServer(targetRoot, {}, nil, "694ba46d")
+                                    end
+                                    
+                                    -- متد اکانت دوست شما
+                                    if Remote874 then
+                                        local args = {                                            [1] = "VA+VacmwpavLmp",
+                                            [2] = 13064117,
+                                            [3] = targetRoot,
+                                            [4] = {},
+                                            [6] = "869bada7"
+                                        }
+                                        Remote874:FireServer(unpack(args))
+                                    end
                                 end
-                            end
-                        end
+                            end                        end
 
+                        -- اسکن NPCها
                         for _, enemy in pairs(workspace.Enemies:GetChildren()) do
                             DamageTarget(enemy)
                         end
 
+                        -- اسکن بازیکنان
                         for _, player in pairs(game.Players:GetPlayers()) do
                             if player ~= lp and player.Character then
                                 DamageTarget(player.Character)
