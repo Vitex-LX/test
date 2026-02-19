@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kooon",
+    Title = "Beta-سس",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -711,3 +711,4 @@ StartBossFarm = FarmTab:Toggle({
         end
     end
 })
+
