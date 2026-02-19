@@ -745,98 +745,92 @@ StartBossFarm = FarmTab:Toggle({
     end
 })
 
--- [[ جداکننده طبق استایل WindUI ]] --
+-- [[ بخش فارم نزدیکان و Bring اصلاح شده ]] --
 FarmTab:Divider()
 
--- متغیرهای کنترلی جدید
-local selectedMelee = nil
-
--- تابع کمکی برای پیدا کردن و تجهیز سلاح Melee
-local function equipMelee()
-    local lp = game.Players.LocalPlayer
-    local backpack = lp.Backpack
-    local char = lp.Character
-    
-    -- اگر از قبل چیزی دستمون هست، چک کن Melee باشه
-    local tool = char:FindFirstChildOfClass("Tool")
-    if tool and (tool:FindFirstChild("Melee") or tool:FindFirstChild("Combat")) then
-        return tool
+local function getMelee()
+    local char = game.Players.LocalPlayer.Character
+    local backpack = game.Players.LocalPlayer.Backpack
+    for _, v in pairs(char:GetChildren()) do
+        if v:IsA("Tool") and (v:FindFirstChild("Melee") or v:FindFirstChild("Combat")) then return v end
     end
-    
-    -- جستجو در کوله‌پشتی
     for _, v in pairs(backpack:GetChildren()) do
-        if v:IsA("Tool") then
-            -- اکثر Meleeها توی Blox Fruits تگ یا نام خاصی دارن
-            if v:FindFirstChild("Melee") or v.ToolTip == "Melee" or v.Name == "Combat" then
-                v.Parent = char
-                return v
-            end
+        if v:IsA("Tool") and (v:FindFirstChild("Melee") or v:FindFirstChild("Combat")) then
+            v.Parent = char
+            return v
         end
     end
 end
 
--- ۱. تاگل حمله به نزدیکان (Farm Nearby)
+-- ساخت یک سطح برای جلوگیری از سقوط
+local BasePart = Instance.new("Part")
+BasePart.Size = Vector3.new(15, 1, 15)
+BasePart.Transparency = 1
+BasePart.Anchored = true
+BasePart.Name = "SafetyPlatform"
+
 local NearFarmToggle = FarmTab:Toggle({
-    Title = "فارم ان‌پی‌سی‌های نزدیک (Bring)",
+    Title = "فارم و تجمع دشمنان (Smart Bring)",
     Callback = function(state)
         _G.NearFarm = state
         
-        task.spawn(function()
-            local lp = game.Players.LocalPlayer
-            
-            while _G.NearFarm do
-                local char = lp.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not state then
+            BasePart.Parent = nil
+            local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if hrp then hrp.Velocity = Vector3.new(0,0,0) end
+        else
+            BasePart.Parent = workspace
+            task.spawn(function()
+                local lp = game.Players.LocalPlayer
                 
-                if hrp then
-                    -- تجهیز سلاح
-                    equipMelee()
+                while _G.NearFarm do
+                    local char = lp.Character
+                    local hrp = char and char:FindFirstChild("HumanoidRootPart")
                     
-                    -- پیدا کردن نزدیک‌ترین دشمنان
-                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
-                            local eHrp = enemy.HumanoidRootPart
-                            local dist = (eHrp.Position - hrp.Position).Magnitude
+                    if hrp then
+                        local foundTarget = false
+                        -- اسکن تمام مدل‌ها برای پیدا کردن ان‌پی‌سی
+                        for _, v in pairs(workspace.Enemies:GetChildren()) do
+                            local eHum = v:FindFirstChild("Humanoid")
+                            local eHrp = v:FindFirstChild("HumanoidRootPart")
                             
-                            -- اگر دشمن در فاصله ۳۰۰ واحدی بود
-                            if dist < 300 then
-                                -- ۱. حرکت ما به بالای سر اولین دشمن
-                                hrp.CFrame = eHrp.CFrame * CFrame.new(0, 10, 0)
+                            if eHum and eHrp and eHum.Health > 0 then
+                                local dist = (eHrp.Position - hrp.Position).Magnitude
                                 
-                                -- ۲. کشیدن دشمن به زیر پای ما (Bring Mob)
-                                eHrp.CanCollide = false
-                                eHrp.CFrame = hrp.CFrame * CFrame.new(0, -10, 0)
-                                eHrp.Velocity = Vector3.new(0,0,0)
-                                
-                                -- نوکلیپ خودمون برای امنیت
-                                for _, part in pairs(char:GetDescendants()) do
-                                    if part:IsA("BasePart") then part.CanCollide = false end
+                                -- رنج زیاد (1000 واحد)
+                                if dist < 1000 then
+                                    foundTarget = true
+                                    getMelee() -- تجهیز سلاح
+                                    
+                                    -- پلتفرم ایمنی زیر پای ما
+                                    BasePart.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
+                                    
+                                    -- حرکت ما به بالای سر دشمن
+                                    hrp.CFrame = eHrp.CFrame * CFrame.new(0, 12, 0)
+                                    hrp.Velocity = Vector3.new(0,0,0)
+
+                                    -- کشیدن دشمن به نقطه تجمع (Bring)
+                                    eHrp.CanCollide = false
+                                    eHrp.CFrame = hrp.CFrame * CFrame.new(0, -10, 0)
+                                    eHrp.Velocity = Vector3.new(0,0,0)
+                                    
+                                    -- نوکلیپ
+                                    for _, part in pairs(char:GetDescendants()) do
+                                        if part:IsA("BasePart") then part.CanCollide = false end
+                                    end
                                 end
                             end
+                            if not _G.NearFarm then break end
+                        end
+                        
+                        -- اگر هدفی نبود، پلتفرم رو زیر کاراکتر نگه دار تا نیفته
+                        if not foundTarget then
+                            BasePart.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
                         end
                     end
+                    task.wait()
                 end
-                task.wait() -- سرعت لوپ برای Bring
-            end
-            
-            -- بعد از خاموش کردن، برخورد رو برگردون
-            if lp.Character then
-                for _, p in pairs(lp.Character:GetDescendants()) do
-                    if p:IsA("BasePart") then p.CanCollide = true end
-                end
-            end
-        end)
-    end
-})
-
--- راهنمایی کوچک برای کاربر
-FarmTab:Button({
-    Title = "نکته: حمله خودکار را هم روشن کنید",
-    Callback = function() 
-        WindUI:Notify({
-            Title = "راهنما",
-            Content = "برای فارم موثر، حتما تگ حمله خودکار در تب کاربردی را فعال کنید.",
-            Duration = 5
-        })
+            end)
+        end
     end
 })
