@@ -750,7 +750,7 @@ StartBossFarm = FarmTab:Toggle({
 
 
 
--- [[ فارم هوشمند: اولویت نزدیک‌ترین + Bring واقعی ]] --
+-- [[ فارم هوشمند با سرعت ۲۵۰ و بازگشت به حالت نرمال ]] --
 FarmTab:Divider()
 
 local function equipMelee()
@@ -770,13 +770,13 @@ end
 
 local floor = workspace:FindFirstChild("VitexFloor") or Instance.new("Part", workspace)
 floor.Name = "VitexFloor"
-floor.Size = Vector3.new(25, 1, 25)
+floor.Size = Vector3.new(20, 1, 20)
 floor.Transparency = 1
 floor.Anchored = true
 floor.CanCollide = false
 
 local NearFarmToggle = FarmTab:Toggle({
-    Title = "فارم هوشمند (نزدیک‌ترین هدف + تجمع)",
+    Title = "فارم هوشمند (سرعت ۲۵۰ + بازگشت نرمال)",
     Callback = function(state)
         _G.NearFarm = state
         
@@ -790,7 +790,7 @@ local NearFarmToggle = FarmTab:Toggle({
         else
             task.spawn(function()
                 local lp = game.Players.LocalPlayer
-                local moveSpeed = 250
+                local moveSpeed = 250 -- سرعت درخواستی شما
                 
                 while _G.NearFarm do
                     local char = lp.Character
@@ -798,66 +798,62 @@ local NearFarmToggle = FarmTab:Toggle({
                     local hum = char and char:FindFirstChild("Humanoid")
                     
                     if hrp and hum then
-                        local closestEnemy = nil
-                        local shortestDistance = 2000 -- حداکثر رنج جستجو
-
-                        -- ۱. پیدا کردن «نزدیک‌ترین» ان‌پی‌سی
+                        local targetHrp = nil
+                        
+                        -- پیدا کردن نزدیک‌ترین NPC در رنج ۲۰۰۰
                         for _, enemy in pairs(workspace.Enemies:GetChildren()) do
                             if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
                                 local dist = (enemy.HumanoidRootPart.Position - hrp.Position).Magnitude
-                                if dist < shortestDistance then
-                                    shortestDistance = dist
-                                    closestEnemy = enemy
+                                if dist < 2000 then
+                                    targetHrp = enemy.HumanoidRootPart
+                                    
+                                    -- تجمع بقیه NPCها (Bring)
+                                    enemy.HumanoidRootPart.CanCollide = false
+                                    enemy.HumanoidRootPart.CFrame = targetHrp.CFrame
+                                    enemy.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
                                 end
                             end
                         end
 
-                        if closestEnemy then
+                        if targetHrp then
                             equipMelee()
                             hum.PlatformStand = true
                             
-                            local targetHrp = closestEnemy.HumanoidRootPart
                             local targetPos = targetHrp.Position + Vector3.new(0, 10, 0)
-                            local myDist = (targetPos - hrp.Position).Magnitude
+                            local distance = (targetPos - hrp.Position).Magnitude
                             
-                            -- ۲. سیستم Bring: جمع کردن تمام ان‌پی‌سی‌های محیط زیر پای شما
-                            for _, enemy in pairs(workspace.Enemies:GetChildren()) do
-                                if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
-                                    local eHrp = enemy.HumanoidRootPart
-                                    if (eHrp.Position - hrp.Position).Magnitude < 500 then -- رنج تجمع
-                                        eHrp.CanCollide = false
-                                        eHrp.CFrame = hrp.CFrame * CFrame.new(0, -10, 0)
-                                        eHrp.Velocity = Vector3.new(0,0,0)
-                                    end
-                                end
-                            end
-
-                            -- ۳. حرکت به سمت هدف با سرعت ۲۵۰
-                            if myDist > 5 then
+                            if distance > 5 then
+                                -- حرکت با سرعت ۲۵۰
                                 hrp.Velocity = (targetPos - hrp.Position).Unit * moveSpeed
-                                floor.CanCollide = false
+                                floor.CanCollide = false -- موقع حرکت پلتفرم مزاحم نشه
                             else
+                                -- وقتی رسیدیم
                                 hrp.Velocity = Vector3.new(0,0,0)
                                 hrp.CFrame = CFrame.new(targetPos)
                                 floor.CanCollide = true
                                 floor.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
                             end
 
-                            -- نوکلیپ برای رد شدن از موانع
+                            -- نوکلیپ
                             for _, part in pairs(char:GetDescendants()) do
                                 if part:IsA("BasePart") then part.CanCollide = false end
                             end
                         else
-                            -- اگر هیچ ان‌پی‌سی در رنج ۲۰۰۰ نبود: بازگشت به حالت عادی
+                            -- بازگشت به حالت نرمال اگر ان‌پی‌سی نبود
                             hum.PlatformStand = false
                             floor.CanCollide = false
-                            hrp.Velocity = Vector3.new(0,0,0)
+                            -- برگرداندن برخورد کاراکتر
                             for _, part in pairs(char:GetDescendants()) do
                                 if part:IsA("BasePart") then part.CanCollide = true end
                             end
                         end
                     end
                     task.wait()
+                end
+                -- تمیزکاری نهایی بعد از خاموش کردن تاگل
+                floor.CanCollide = false
+                if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                    lp.Character.Humanoid.PlatformStand = false
                 end
             end)
         end
