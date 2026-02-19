@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-fixed",
+    Title = "Beta-kooon",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -98,7 +98,7 @@ local function stopTeleport()
     
     if hum then
         hum.PlatformStand = false
-        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true) -- فعال کردن مجدد نشستن
+        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
         hum:ChangeState(Enum.HumanoidStateType.GettingUp)
     end
 
@@ -138,9 +138,8 @@ StartTP = TeleportTab:Toggle({
                 local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum and _G.Teleporting then
-                    -- تنظیمات اولیه برای جلوگیری از لرزش و نشستن
                     hum.PlatformStand = true
-                    hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false) -- غیرفعال کردن صندلی
+                    hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
                     
                     local speed = 300
                     
@@ -150,22 +149,23 @@ StartTP = TeleportTab:Toggle({
                             return
                         end
                         
-                        local targetPos = selectedIslandCFrame.Position + Vector3.new(0, 60, 0)
+                        -- استفاده از موقعیت مستقیم بدون ارتفاع اضافی
+                        local targetPos = selectedIslandCFrame.Position
                         local currentPos = hrp.Position
                         local diff = targetPos - currentPos
                         local dist = diff.Magnitude
                         
-                        -- نوی کلیپ مداوم
+                        -- نوکلیپ برای رد شدن از موانع
                         for _, part in pairs(char:GetDescendants()) do
                             if part:IsA("BasePart") then part.CanCollide = false end
                         end
                         
                         if dist > 5 then
                             hrp.Velocity = diff.Unit * speed
-                            -- چرخش کاراکتر فقط در محور افقی (جلوگیری از کله‌معلق شدن)
+                            -- نگاه کردن به سمت مقصد
                             hrp.CFrame = CFrame.new(currentPos, Vector3.new(targetPos.X, currentPos.Y, targetPos.Z))
                         else
-                            -- رسیدن به مقصد (ایستادن روی زمین)
+                            -- توقف در نقطه مقصد
                             hrp.Velocity = Vector3.new(0,0,0)
                             hrp.CFrame = selectedIslandCFrame
                         end
@@ -183,6 +183,8 @@ local RefreshBtn = TeleportTab:Button({
         IslandDropdown:SetValues(newList)
     end
 })
+
+
 
 local WaterPart = Instance.new("Part")
 WaterPart.Size = Vector3.new(100, 0.5, 100)
