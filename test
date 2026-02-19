@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kooon",
+    Title = "Beta-wdwdeg",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -750,7 +750,7 @@ StartBossFarm = FarmTab:Toggle({
 
 
 
--- [[ فارم نزدیکان - نسخه بهینه و بدون پرتاب به هوا ]] --
+-- [[ فارم هوشمند با سرعت ۲۵۰ و بازگشت به حالت نرمال ]] --
 FarmTab:Divider()
 
 local function equipMelee()
@@ -768,7 +768,6 @@ local function equipMelee()
     end
 end
 
--- ایجاد یک پلتفرم نامرئی زیر پا برای جلوگیری از سقوط (فقط یکبار ساخته می‌شود)
 local floor = workspace:FindFirstChild("VitexFloor") or Instance.new("Part", workspace)
 floor.Name = "VitexFloor"
 floor.Size = Vector3.new(20, 1, 20)
@@ -777,7 +776,7 @@ floor.Anchored = true
 floor.CanCollide = false
 
 local NearFarmToggle = FarmTab:Toggle({
-    Title = "فارم هوشمند و تجمع (No Ground Bug)",
+    Title = "فارم هوشمند (سرعت ۲۵۰ + بازگشت نرمال)",
     Callback = function(state)
         _G.NearFarm = state
         
@@ -786,10 +785,13 @@ local NearFarmToggle = FarmTab:Toggle({
             local lp = game.Players.LocalPlayer
             if lp.Character and lp.Character:FindFirstChild("Humanoid") then
                 lp.Character.Humanoid.PlatformStand = false
+                lp.Character.Humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
             end
         else
             task.spawn(function()
                 local lp = game.Players.LocalPlayer
+                local moveSpeed = 250 -- سرعت درخواستی شما
+                
                 while _G.NearFarm do
                     local char = lp.Character
                     local hrp = char and char:FindFirstChild("HumanoidRootPart")
@@ -797,14 +799,15 @@ local NearFarmToggle = FarmTab:Toggle({
                     
                     if hrp and hum then
                         local targetHrp = nil
-                        -- جستجوی NPC در رنج 2000
+                        
+                        -- پیدا کردن نزدیک‌ترین NPC در رنج ۲۰۰۰
                         for _, enemy in pairs(workspace.Enemies:GetChildren()) do
                             if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
                                 local dist = (enemy.HumanoidRootPart.Position - hrp.Position).Magnitude
                                 if dist < 2000 then
                                     targetHrp = enemy.HumanoidRootPart
                                     
-                                    -- تجمع بقیه NPCها در همین نقطه (Bring)
+                                    -- تجمع بقیه NPCها (Bring)
                                     enemy.HumanoidRootPart.CanCollide = false
                                     enemy.HumanoidRootPart.CFrame = targetHrp.CFrame
                                     enemy.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
@@ -814,31 +817,44 @@ local NearFarmToggle = FarmTab:Toggle({
 
                         if targetHrp then
                             equipMelee()
-                            hum.PlatformStand = true -- جلوگیری از انیمیشن افتادن
+                            hum.PlatformStand = true
                             
-                            -- تنظیم موقعیت تو: 10 واحد بالای سر NPC
-                            local finalPos = targetHrp.CFrame * CFrame.new(0, 10, 0)
-                            hrp.CFrame = finalPos
-                            hrp.Velocity = Vector3.new(0,0,0)
+                            local targetPos = targetHrp.Position + Vector3.new(0, 10, 0)
+                            local distance = (targetPos - hrp.Position).Magnitude
+                            
+                            if distance > 5 then
+                                -- حرکت با سرعت ۲۵۰
+                                hrp.Velocity = (targetPos - hrp.Position).Unit * moveSpeed
+                                floor.CanCollide = false -- موقع حرکت پلتفرم مزاحم نشه
+                            else
+                                -- وقتی رسیدیم
+                                hrp.Velocity = Vector3.new(0,0,0)
+                                hrp.CFrame = CFrame.new(targetPos)
+                                floor.CanCollide = true
+                                floor.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
+                            end
 
-                            -- فعال سازی پلتفرم زیر پا دقیقا زیر کاراکتر
-                            floor.CanCollide = true
-                            floor.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
-
-                            -- نود کلیپ (NoClip)
+                            -- نوکلیپ
                             for _, part in pairs(char:GetDescendants()) do
                                 if part:IsA("BasePart") then part.CanCollide = false end
                             end
                         else
-                            -- اگر دشمنی نبود، روی پلتفرم در هوا بمون تا زمین نری
-                            floor.CanCollide = true
-                            floor.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
-                            hrp.Velocity = Vector3.new(0,0,0)
+                            -- بازگشت به حالت نرمال اگر ان‌پی‌سی نبود
+                            hum.PlatformStand = false
+                            floor.CanCollide = false
+                            -- برگرداندن برخورد کاراکتر
+                            for _, part in pairs(char:GetDescendants()) do
+                                if part:IsA("BasePart") then part.CanCollide = true end
+                            end
                         end
                     end
-                    task.wait() -- سرعت رفرش بالا برای جلوگیری از لرزش
+                    task.wait()
                 end
+                -- تمیزکاری نهایی بعد از خاموش کردن تاگل
                 floor.CanCollide = false
+                if lp.Character and lp.Character:FindFirstChild("Humanoid") then
+                    lp.Character.Humanoid.PlatformStand = false
+                end
             end)
         end
     end
