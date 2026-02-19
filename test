@@ -428,21 +428,27 @@ local FruitESP = EspTab:Toggle({
     Title = "ESP Fruits",
     Callback = function(state)
         _G.ESP_Fruits = state
-        if not state then FullCleanup("Fruit") end
-        task.spawn(function()
-            while _G.ESP_Fruits do
-                for _, v in pairs(workspace:GetChildren()) do
-                    local isFruit = v.Name:find("Fruit") or v:FindFirstChild("Fruit")
-                    local handle = v:IsA("Tool") and v:FindFirstChild("Handle") or v:IsA("Model") and v:FindFirstChildOfClass("BasePart")
-                    
-                    if isFruit and handle then
-                        local fruitName = v.Name:gsub("Physical ", ""):gsub(" Fruit", "")
-                        ManageESP(handle, "🍎 " .. fruitName, Color3.fromRGB(100, 255, 100), "Fruit", true)
+        
+        if not state then 
+            FullCleanup("Fruit") 
+        else
+            task.spawn(function()
+                while _G.ESP_Fruits do
+                    for _, v in pairs(workspace:GetChildren()) do
+                        if not _G.ESP_Fruits then break end
+                        
+                        local isFruit = v.Name:find("Fruit") or v:FindFirstChild("Fruit")
+                        local handle = v:IsA("Tool") and v:FindFirstChild("Handle") or v:IsA("Model") and v:FindFirstChildOfClass("BasePart")
+                        
+                        if isFruit and handle then
+                            local fruitName = v.Name:gsub("Physical ", ""):gsub(" Fruit", "")
+                            ManageESP(handle, "🍎 " .. fruitName, Color3.fromRGB(100, 255, 100), "Fruit", true)
+                        end
                     end
+                    task.wait(0.1)
                 end
-                task.wait(2)
-            end
-        end)
+            end)
+        end
     end
 })
 
