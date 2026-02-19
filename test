@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kds",
+    Title = "Beta-kooon",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -53,17 +53,13 @@ local TeleportTab = Window:Tab({
     Icon = "map-pin",
 })
 
--- متغیرهای کنترلی
 local selectedIslandCFrame = nil
 local tpTween = nil
 local tpBV = nil
 local tpNoclip = nil
-
--- متغیرهای کمکی برای داده‌ها
 local islandNames = {}
 local islandObjects = {}
 
--- تابع اسکن جزیره‌ها
 local function refreshIslandList()
     islandNames = {}
     islandObjects = {}
@@ -82,7 +78,6 @@ end
 
 refreshIslandList()
 
--- تابع متوقف کردن تلپورت و پاکسازی
 local function stopTeleport()
     if tpTween then tpTween:Cancel() tpTween = nil end
     if tpBV then tpBV:Destroy() tpBV = nil end
@@ -96,7 +91,6 @@ local function stopTeleport()
     end
 end
 
--- ۱. دراپ‌داون انتخاب مکان
 local IslandDropdown = TeleportTab:Dropdown({
     Title = "مکان‌ها",
     Values = islandNames,
@@ -108,8 +102,9 @@ local IslandDropdown = TeleportTab:Dropdown({
     end
 })
 
--- ۲. تاگل شروع تلپورت
-local StartTP = TeleportTab:Toggle({
+local StartTP -- تعریف متغیر قبل از ساخت برای دسترسی در بدنه
+
+StartTP = TeleportTab:Toggle({
     Title = "شروع تلپورت",
     Callback = function(state)
         _G.Teleporting = state
@@ -118,7 +113,7 @@ local StartTP = TeleportTab:Toggle({
             stopTeleport()
         else
             if not selectedIslandCFrame then 
-                _G.Teleporting = false
+                StartTP:SetValue(false)
                 return 
             end
             
@@ -128,15 +123,13 @@ local StartTP = TeleportTab:Toggle({
                 local hrp = char and char:FindFirstChild("HumanoidRootPart")
                 
                 if hrp and _G.Teleporting then
-                    stopTeleport() -- اطمینان از نبود تسک قبلی
+                    stopTeleport()
                     
-                    -- ضد لرزش: استفاده از BodyVelocity برای ثبات
                     tpBV = Instance.new("BodyVelocity")
                     tpBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
                     tpBV.Velocity = Vector3.new(0, 0, 0)
                     tpBV.Parent = hrp
                     
-                    -- نوکلیپ
                     tpNoclip = game:GetService("RunService").Stepped:Connect(function()
                         if char then
                             for _, part in pairs(char:GetDescendants()) do
@@ -145,7 +138,6 @@ local StartTP = TeleportTab:Toggle({
                         end
                     end)
                     
-                    -- محاسبه زمان بر اساس فاصله (سرعت ۳۰۰ برای نرمی بیشتر)
                     local dist = (selectedIslandCFrame.Position - hrp.Position).Magnitude
                     local duration = dist / 300
                     
@@ -154,6 +146,9 @@ local StartTP = TeleportTab:Toggle({
                     
                     tpTween.Completed:Connect(function()
                         stopTeleport()
+                        if StartTP.Value == true then
+                            StartTP:SetValue(false)
+                        end
                     end)
                 end
             end)
@@ -161,7 +156,6 @@ local StartTP = TeleportTab:Toggle({
     end
 })
 
--- دکمه آپدیت لیست (بدون نوتیفیکیشن)
 local RefreshBtn = TeleportTab:Button({
     Title = "به‌روزرسانی لیست",
     Callback = function()
