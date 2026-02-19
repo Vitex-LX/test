@@ -53,108 +53,120 @@ local TeleportTab = Window:Tab({
     Icon = "map-pin",
 })
 
-local TeleportSection = TeleportTab:Section({ Title = "مکان‌ها" })
+-- متغیرهای کنترلی
+local selectedIslandCFrame = nil
+local tpTween = nil
+local tpBV = nil
+local tpNoclip = nil
 
--- متغیرهای پایه برای تلپورت
-local tweenService = game:GetService("TweenService")
-local player = game.Players.LocalPlayer
-
--- تابع تلپورت امن (دقیقا همان کدی که خودت داشتی)
-local function safeTeleport(targetCFrame)
-    local character = player.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-    
-    local hrp = character.HumanoidRootPart
-    local distance = (targetCFrame.Position - hrp.Position).Magnitude
-    local speed = 250
-    local duration = distance / speed
-
-    local bv = Instance.new("BodyVelocity")
-    bv.Velocity = Vector3.new(0, 0, 0)
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Parent = hrp
-
-    local noclipLoop = game:GetService("RunService").Stepped:Connect(function()
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end)
-
-    local tween = tweenService:Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-    
-    tween:Play()
-    
-    tween.Completed:Connect(function()
-        bv:Destroy()
-        noclipLoop:Disconnect()
-
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = true
-            end
-        end
-    end)
-end
-
--- متغیرهای کمکی برای ذخیره داده‌های اسکن شده
+-- متغیرهای کمکی برای داده‌ها
 local islandNames = {}
 local islandObjects = {}
 
--- تابع اسکن کردن جزیره‌ها به صورت خودکار
+-- تابع اسکن جزیره‌ها
 local function refreshIslandList()
     islandNames = {}
     islandObjects = {}
-    
     local locs = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations")
     if locs then
         for _, v in pairs(locs:GetChildren()) do
             if not v.Name:find("Sea") then
                 table.insert(islandNames, v.Name)
-                islandObjects[v.Name] = v -- ذخیره آبجکت برای دسترسی به مختصات
+                islandObjects[v.Name] = v
             end
         end
     end
-    table.sort(islandNames) -- مرتب‌سازی الفبایی نام‌ها برای زیبایی منو
+    table.sort(islandNames)
     return islandNames
 end
 
--- اسکن اولیه قبل از ساخت UI
 refreshIslandList()
 
--- ساخت دراپ‌داون با تعریف متغیر local طبق داکیومنت
-local IslandDropdown = TeleportSection:Dropdown({
-    Title = "انتخاب مقصد",
+-- تابع متوقف کردن تلپورت و پاکسازی
+local function stopTeleport()
+    if tpTween then tpTween:Cancel() tpTween = nil end
+    if tpBV then tpBV:Destroy() tpBV = nil end
+    if tpNoclip then tpNoclip:Disconnect() tpNoclip = nil end
+    
+    local char = game.Players.LocalPlayer.Character
+    if char then
+        for _, v in pairs(char:GetDescendants()) do
+            if v:IsA("BasePart") then v.CanCollide = true end
+        end
+    end
+end
+
+-- ۱. دراپ‌داون انتخاب مکان
+local IslandDropdown = TeleportTab:Dropdown({
+    Title = "مکان‌ها",
     Values = islandNames,
     Callback = function(selected)
-        local targetPart = islandObjects[selected]
-        if targetPart then
-            -- فراخوانی تابع تلپورت شما با مختصات جزیره انتخاب شده
-            safeTeleport(targetPart.CFrame)
-        else
-            -- نمایش ارور در صورت پیدا نشدن
-            local ErrorNotify = WindUI:Notify({
-                Title = "خطا",
-                Content = "مکان مورد نظر پیدا نشد!",
-                Duration = 3
-            })
+        local target = islandObjects[selected]
+        if target then
+            selectedIslandCFrame = target.CFrame
         end
     end
 })
 
--- ساخت دکمه به‌روزرسانی برای مواقعی که مپ عوض می‌شود
-local RefreshButton = TeleportSection:Button({
-    Title = "به‌روزرسانی لیست جزیره‌ها",
+-- ۲. تاگل شروع تلپورت
+local StartTP = TeleportTab:Toggle({
+    Title = "شروع تلپورت",
+    Callback = function(state)
+        _G.Teleporting = state
+        
+        if not state then
+            stopTeleport()
+        else
+            if not selectedIslandCFrame then 
+                _G.Teleporting = false
+                return 
+            end
+            
+            task.spawn(function()
+                local lp = game.Players.LocalPlayer
+                local char = lp.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if hrp and _G.Teleporting then
+                    stopTeleport() -- اطمینان از نبود تسک قبلی
+                    
+                    -- ضد لرزش: استفاده از BodyVelocity برای ثبات
+                    tpBV = Instance.new("BodyVelocity")
+                    tpBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    tpBV.Velocity = Vector3.new(0, 0, 0)
+                    tpBV.Parent = hrp
+                    
+                    -- نوکلیپ
+                    tpNoclip = game:GetService("RunService").Stepped:Connect(function()
+                        if char then
+                            for _, part in pairs(char:GetDescendants()) do
+                                if part:IsA("BasePart") then part.CanCollide = false end
+                            end
+                        end
+                    end)
+                    
+                    -- محاسبه زمان بر اساس فاصله (سرعت ۳۰۰ برای نرمی بیشتر)
+                    local dist = (selectedIslandCFrame.Position - hrp.Position).Magnitude
+                    local duration = dist / 300
+                    
+                    tpTween = game:GetService("TweenService"):Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = selectedIslandCFrame})
+                    tpTween:Play()
+                    
+                    tpTween.Completed:Connect(function()
+                        stopTeleport()
+                    end)
+                end
+            end)
+        end
+    end
+})
+
+-- دکمه آپدیت لیست (بدون نوتیفیکیشن)
+local RefreshBtn = TeleportTab:Button({
+    Title = "به‌روزرسانی لیست",
     Callback = function()
         local newList = refreshIslandList()
-        IslandDropdown:SetValues(newList) -- آپدیت کردن مقادیر دراپ‌داون
-        
-        local SuccessNotify = WindUI:Notify({
-            Title = "موفقیت",
-            Content = "لیست مکان‌ها به‌روزرسانی شد.",
-            Duration = 2
-        })
+        IslandDropdown:SetValues(newList)
     end
 })
 
