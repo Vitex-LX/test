@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-dih",
+    Title = "Beta-ss",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -141,7 +141,7 @@ StartTP = TeleportTab:Toggle({
                     hum.PlatformStand = true
                     hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
                     
-                    local speed = 300
+                    local speed = 250
                     
                     tpLoop = game:GetService("RunService").Heartbeat:Connect(function()
                         if not _G.Teleporting or not char or not hrp.Parent then
@@ -745,87 +745,109 @@ StartBossFarm = FarmTab:Toggle({
     end
 })
 
--- [[ بخش فارم نزدیکان و Bring اصلاح شده ]] --
+-- [[ بخش فارم نزدیکان - نسخه نهایی و فیکس شده ]] --
 FarmTab:Divider()
 
-local function getMelee()
-    local char = game.Players.LocalPlayer.Character
-    local backpack = game.Players.LocalPlayer.Backpack
+local function equipMelee()
+    local lp = game.Players.LocalPlayer
+    local char = lp.Character
+    if not char then return end
+    
+    -- چک کن الان چیزی دستت هست یا نه
     for _, v in pairs(char:GetChildren()) do
-        if v:IsA("Tool") and (v:FindFirstChild("Melee") or v:FindFirstChild("Combat")) then return v end
+        if v:IsA("Tool") then return v end
     end
-    for _, v in pairs(backpack:GetChildren()) do
-        if v:IsA("Tool") and (v:FindFirstChild("Melee") or v:FindFirstChild("Combat")) then
-            v.Parent = char
-            return v
+    
+    -- اگر نبود، بگرد دنبال Melee
+    for _, v in pairs(lp.Backpack:GetChildren()) do
+        if v:IsA("Tool") then
+            -- اولویت با ابزارهای رزمی
+            if v.ToolTip == "Melee" or v:FindFirstChild("Melee") or v.Name:find("Combat") then
+                v.Parent = char
+                return v
+            end
         end
     end
 end
 
--- ساخت یک سطح برای جلوگیری از سقوط
-local BasePart = Instance.new("Part")
-BasePart.Size = Vector3.new(15, 1, 15)
-BasePart.Transparency = 1
-BasePart.Anchored = true
-BasePart.Name = "SafetyPlatform"
+-- پلتفرم نگهدارنده برای جلوگیری از سقوط
+local SafetyPart = Instance.new("Part")
+SafetyPart.Name = "FarmSafety"
+SafetyPart.Size = Vector3.new(20, 1, 20)
+SafetyPart.Transparency = 1
+SafetyPart.Anchored = true
+SafetyPart.CanCollide = false -- در حالت عادی خاموش
 
 local NearFarmToggle = FarmTab:Toggle({
-    Title = "فارم و تجمع دشمنان (Smart Bring)",
+    Title = "فارم و تجمع (Bring Mob)",
     Callback = function(state)
         _G.NearFarm = state
         
         if not state then
-            BasePart.Parent = nil
+            SafetyPart.Parent = nil
             local hrp = game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if hrp then hrp.Velocity = Vector3.new(0,0,0) end
         else
-            BasePart.Parent = workspace
+            SafetyPart.Parent = workspace
             task.spawn(function()
                 local lp = game.Players.LocalPlayer
+                local speed = 250
                 
                 while _G.NearFarm do
                     local char = lp.Character
                     local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                    local hum = char and char:FindFirstChild("Humanoid")
                     
-                    if hrp then
-                        local foundTarget = false
-                        -- اسکن تمام مدل‌ها برای پیدا کردن ان‌پی‌سی
+                    if hrp and hum then
+                        local targetEnemy = nil
+                        local minRoot = nil
+                        
+                        -- پیدا کردن نزدیک‌ترین ان‌پی‌سی
                         for _, v in pairs(workspace.Enemies:GetChildren()) do
-                            local eHum = v:FindFirstChild("Humanoid")
-                            local eHrp = v:FindFirstChild("HumanoidRootPart")
-                            
-                            if eHum and eHrp and eHum.Health > 0 then
-                                local dist = (eHrp.Position - hrp.Position).Magnitude
-                                
-                                -- رنج زیاد (1000 واحد)
-                                if dist < 1000 then
-                                    foundTarget = true
-                                    getMelee() -- تجهیز سلاح
-                                    
-                                    -- پلتفرم ایمنی زیر پای ما
-                                    BasePart.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
-                                    
-                                    -- حرکت ما به بالای سر دشمن
-                                    hrp.CFrame = eHrp.CFrame * CFrame.new(0, 12, 0)
-                                    hrp.Velocity = Vector3.new(0,0,0)
-
-                                    -- کشیدن دشمن به نقطه تجمع (Bring)
-                                    eHrp.CanCollide = false
-                                    eHrp.CFrame = hrp.CFrame * CFrame.new(0, -10, 0)
-                                    eHrp.Velocity = Vector3.new(0,0,0)
-                                    
-                                    -- نوکلیپ
-                                    for _, part in pairs(char:GetDescendants()) do
-                                        if part:IsA("BasePart") then part.CanCollide = false end
-                                    end
-                                end
+                            if v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 and v:FindFirstChild("HumanoidRootPart") then
+                                targetEnemy = v
+                                minRoot = v.HumanoidRootPart
+                                break -- تمرکز روی یکی برای حرکت نرم
                             end
-                            if not _G.NearFarm then break end
                         end
                         
-                        -- اگر هدفی نبود، پلتفرم رو زیر کاراکتر نگه دار تا نیفته
-                        if not foundTarget then
-                            BasePart.CFrame = hrp.CFrame * CFrame.new(0, -4, 0)
+                        if targetEnemy and minRoot then
+                            equipMelee() -- حتماً سلاح رو بگیر دستت
+                            
+                            -- نقطه هدف: ۱۰ واحد بالای سر ان‌پی‌سی
+                            local targetPos = minRoot.Position + Vector3.new(0, 10, 0)
+                            local dist = (targetPos - hrp.Position).Magnitude
+                            
+                            -- نوکلیپ
+                            for _, part in pairs(char:GetDescendants()) do
+                                if part:IsA("BasePart") then part.CanCollide = false end
+                            end
+
+                            if dist > 5 then
+                                -- حرکت نرم مثل تلپورت جزیره‌ها
+                                hum.PlatformStand = true
+                                hrp.Velocity = (targetPos - hrp.Position).Unit * speed
+                                hrp.CFrame = CFrame.new(hrp.Position, Vector3.new(targetPos.X, hrp.Position.Y, targetPos.Z))
+                                SafetyPart.CanCollide = false
+                            else
+                                -- وقتی رسیدیم: قفل کردن و Bring
+                                hrp.Velocity = Vector3.new(0,0,0)
+                                hrp.CFrame = CFrame.new(targetPos)
+                                
+                                -- فعال کردن پلتفرم زیر پا برای جلوگیری از سقوط
+                                SafetyPart.CanCollide = true
+                                SafetyPart.CFrame = hrp.CFrame * CFrame.new(0, -5, 0)
+                                
+                                -- کشیدن ان‌پی‌سی به محل تجمع (Bring)
+                                minRoot.CanCollide = false
+                                minRoot.CFrame = hrp.CFrame * CFrame.new(0, -8, 0)
+                                minRoot.Velocity = Vector3.new(0,0,0)
+                            end
+                        else
+                            -- اگر ان‌پی‌سی نبود، فقط در هوا معلق بمون
+                            hrp.Velocity = Vector3.new(0,0,0)
+                            SafetyPart.CanCollide = true
+                            SafetyPart.CFrame = hrp.CFrame * CFrame.new(0, -5, 0)
                         end
                     end
                     task.wait()
@@ -834,4 +856,3 @@ local NearFarmToggle = FarmTab:Toggle({
         end
     end
 })
-
