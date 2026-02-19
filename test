@@ -744,3 +744,99 @@ StartBossFarm = FarmTab:Toggle({
         end
     end
 })
+
+-- [[ جداکننده طبق استایل WindUI ]] --
+FarmTab:Divider()
+
+-- متغیرهای کنترلی جدید
+local selectedMelee = nil
+
+-- تابع کمکی برای پیدا کردن و تجهیز سلاح Melee
+local function equipMelee()
+    local lp = game.Players.LocalPlayer
+    local backpack = lp.Backpack
+    local char = lp.Character
+    
+    -- اگر از قبل چیزی دستمون هست، چک کن Melee باشه
+    local tool = char:FindFirstChildOfClass("Tool")
+    if tool and (tool:FindFirstChild("Melee") or tool:FindFirstChild("Combat")) then
+        return tool
+    end
+    
+    -- جستجو در کوله‌پشتی
+    for _, v in pairs(backpack:GetChildren()) do
+        if v:IsA("Tool") then
+            -- اکثر Meleeها توی Blox Fruits تگ یا نام خاصی دارن
+            if v:FindFirstChild("Melee") or v.ToolTip == "Melee" or v.Name == "Combat" then
+                v.Parent = char
+                return v
+            end
+        end
+    end
+end
+
+-- ۱. تاگل حمله به نزدیکان (Farm Nearby)
+local NearFarmToggle = FarmTab:Toggle({
+    Title = "فارم ان‌پی‌سی‌های نزدیک (Bring)",
+    Callback = function(state)
+        _G.NearFarm = state
+        
+        task.spawn(function()
+            local lp = game.Players.LocalPlayer
+            
+            while _G.NearFarm do
+                local char = lp.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                
+                if hrp then
+                    -- تجهیز سلاح
+                    equipMelee()
+                    
+                    -- پیدا کردن نزدیک‌ترین دشمنان
+                    for _, enemy in pairs(workspace.Enemies:GetChildren()) do
+                        if enemy:FindFirstChild("Humanoid") and enemy.Humanoid.Health > 0 and enemy:FindFirstChild("HumanoidRootPart") then
+                            local eHrp = enemy.HumanoidRootPart
+                            local dist = (eHrp.Position - hrp.Position).Magnitude
+                            
+                            -- اگر دشمن در فاصله ۳۰۰ واحدی بود
+                            if dist < 300 then
+                                -- ۱. حرکت ما به بالای سر اولین دشمن
+                                hrp.CFrame = eHrp.CFrame * CFrame.new(0, 10, 0)
+                                
+                                -- ۲. کشیدن دشمن به زیر پای ما (Bring Mob)
+                                eHrp.CanCollide = false
+                                eHrp.CFrame = hrp.CFrame * CFrame.new(0, -10, 0)
+                                eHrp.Velocity = Vector3.new(0,0,0)
+                                
+                                -- نوکلیپ خودمون برای امنیت
+                                for _, part in pairs(char:GetDescendants()) do
+                                    if part:IsA("BasePart") then part.CanCollide = false end
+                                end
+                            end
+                        end
+                    end
+                end
+                task.wait() -- سرعت لوپ برای Bring
+            end
+            
+            -- بعد از خاموش کردن، برخورد رو برگردون
+            if lp.Character then
+                for _, p in pairs(lp.Character:GetDescendants()) do
+                    if p:IsA("BasePart") then p.CanCollide = true end
+                end
+            end
+        end)
+    end
+})
+
+-- راهنمایی کوچک برای کاربر
+FarmTab:Button({
+    Title = "نکته: حمله خودکار را هم روشن کنید",
+    Callback = function() 
+        WindUI:Notify({
+            Title = "راهنما",
+            Content = "برای فارم موثر، حتما تگ حمله خودکار در تب کاربردی را فعال کنید.",
+            Duration = 5
+        })
+    end
+})
