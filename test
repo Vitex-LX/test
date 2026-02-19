@@ -55,27 +55,11 @@ local TeleportTab = Window:Tab({
 
 local TeleportSection = TeleportTab:Section({ Title = "مکان‌ها" })
 
-local locations = {
-    { name = "Pirate Island",  cframe = CFrame.new(1041.88, 16.27, 1424.93) },
-    { name = "Marine Island",  cframe = CFrame.new(-2896.68, 41.48, 2009.27) },
-    { name = "Colosseum",      cframe = CFrame.new(-1541.08, 7.38, -2987.40) },
-    { name = "Desert",         cframe = CFrame.new(1094.32, 6.56, 4231.63) },
-    { name = "Fountain City",  cframe = CFrame.new(5529.72, 429.35, 4245.54) },
-    { name = "Jungle",         cframe = CFrame.new(-1615.18, 36.85, 150.80) },
-    { name = "Marine Fort",    cframe = CFrame.new(-4846.14, 20.65, 4393.65) },
-    { name = "Middle Town",    cframe = CFrame.new(-705.99, 7.85, 1547.52) },
-    { name = "Prison",         cframe = CFrame.new(4841.84, 5.65, 741.32) },
-    { name = "Pirate Village", cframe = CFrame.new(-1146.42, 4.75, 3818.50) },
-    { name = "Sky 1",          cframe = CFrame.new(-4967.83, 717.67, -2623.84) },
-    { name = "Sky 2",          cframe = CFrame.new(-7876.07, 5545.58, -381.19) },
-    { name = "Snow",           cframe = CFrame.new(1100.36, 5.29, -1151.54) },
-    { name = "Under Water",    cframe = CFrame.new(61135.29, 18.47, 1597.68) },
-    { name = "Magma Village",  cframe = CFrame.new(-5248.27, 8.69, 8452.89) },
-}
-
+-- متغیرهای پایه برای تلپورت
 local tweenService = game:GetService("TweenService")
 local player = game.Players.LocalPlayer
 
+-- تابع تلپورت امن (دقیقا همان کدی که خودت داشتی)
 local function safeTeleport(targetCFrame)
     local character = player.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
@@ -114,14 +98,65 @@ local function safeTeleport(targetCFrame)
     end)
 end
 
-for _, location in ipairs(locations) do
-    TeleportSection:Button({
-        Title = location.name,
-        Callback = function()
-            safeTeleport(location.cframe)
-        end,
-    })
+-- متغیرهای کمکی برای ذخیره داده‌های اسکن شده
+local islandNames = {}
+local islandObjects = {}
+
+-- تابع اسکن کردن جزیره‌ها به صورت خودکار
+local function refreshIslandList()
+    islandNames = {}
+    islandObjects = {}
+    
+    local locs = workspace:FindFirstChild("_WorldOrigin") and workspace._WorldOrigin:FindFirstChild("Locations")
+    if locs then
+        for _, v in pairs(locs:GetChildren()) do
+            if not v.Name:find("Sea") then
+                table.insert(islandNames, v.Name)
+                islandObjects[v.Name] = v -- ذخیره آبجکت برای دسترسی به مختصات
+            end
+        end
+    end
+    table.sort(islandNames) -- مرتب‌سازی الفبایی نام‌ها برای زیبایی منو
+    return islandNames
 end
+
+-- اسکن اولیه قبل از ساخت UI
+refreshIslandList()
+
+-- ساخت دراپ‌داون با تعریف متغیر local طبق داکیومنت
+local IslandDropdown = TeleportSection:Dropdown({
+    Title = "انتخاب مقصد",
+    Values = islandNames,
+    Callback = function(selected)
+        local targetPart = islandObjects[selected]
+        if targetPart then
+            -- فراخوانی تابع تلپورت شما با مختصات جزیره انتخاب شده
+            safeTeleport(targetPart.CFrame)
+        else
+            -- نمایش ارور در صورت پیدا نشدن
+            local ErrorNotify = WindUI:Notify({
+                Title = "خطا",
+                Content = "مکان مورد نظر پیدا نشد!",
+                Duration = 3
+            })
+        end
+    end
+})
+
+-- ساخت دکمه به‌روزرسانی برای مواقعی که مپ عوض می‌شود
+local RefreshButton = TeleportSection:Button({
+    Title = "به‌روزرسانی لیست جزیره‌ها",
+    Callback = function()
+        local newList = refreshIslandList()
+        IslandDropdown:SetValues(newList) -- آپدیت کردن مقادیر دراپ‌داون
+        
+        local SuccessNotify = WindUI:Notify({
+            Title = "موفقیت",
+            Content = "لیست مکان‌ها به‌روزرسانی شد.",
+            Duration = 2
+        })
+    end
+})
 
 local WaterPart = Instance.new("Part")
 WaterPart.Size = Vector3.new(100, 0.5, 100)
