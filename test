@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-سس",
+    Title = "Beta-kooon",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -597,118 +597,150 @@ local AutoFruit = FruitTab:Toggle({
 
 
 
--- [[ بخش فارم باس ]] --
+
+
+
+
+
+-- [[ بخش فارم باس نهایی ]] --
 local FarmTab = Window:Tab({
-    Title = "فارم",
-    Icon = "swords", -- آیکون شمشیر برای فارم
+    Title = "فارم باس",
+    Icon = "swords",
 })
 
-local selectedBoss = nil
+local selectedBossName = nil
 local bossLoop = nil
-local bossNames = {}
 local bossObjects = {}
 
--- تابع برای پیدا کردن باس‌های اسپاون شده در مپ
-local function refreshBossList()
-    bossNames = {}
+-- تابع دقیق برای پیدا کردن باس‌های واقعی Blox Fruits
+local function getOnlyBosses()
+    local names = {}
     bossObjects = {}
     
-    -- در بلوکس فروت معمولا باس‌ها در Enemies یا مپ هستند
-    -- این کد پوشه دشمنان را برای پیدا کردن موجودات قوی چک می‌کند
-    for _, v in pairs(workspace.Enemies:GetChildren()) do
-        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v.Humanoid.Health > 0 then
-            -- معمولا باس‌ها نام خاص یا لول بالایی دارند
-            local name = v.Name
-            table.insert(bossNames, name)
-            bossObjects[name] = v
+    -- جستجو در تمام محیط بازی برای پیدا کردن مدل‌های زنده
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
+            local hum = v.Humanoid
+            -- باس‌ها معمولاً MaxHealth خیلی بالایی دارن یا DisplayName متفاوتی دارن
+            if hum.MaxHealth >= 100000 or v:FindFirstChild("BossLabel") or v:GetAttribute("IsBoss") then
+                local displayName = v.Name
+                table.insert(names, displayName)
+                bossObjects[displayName] = v
+            end
         end
     end
     
-    -- اگر باسی نبود یک گزینه پیش‌فرض نمایش بده
-    if #bossNames == 0 then table.insert(bossNames, "باسی اسپاون نیست") end
-    
-    return bossNames
+    if #names == 0 then return {"باسی پیدا نشد"} end
+    table.sort(names)
+    return names
 end
 
--- ۱. دراپ‌داون انتخاب باس
+-- ایجاد دراپ‌داون طبق داکیومنت WindUI
 local BossDropdown = FarmTab:Dropdown({
-    Title = "انتخاب باس (موجود در مپ)",
-    Values = refreshBossList(),
+    Title = "انتخاب باس",
+    Values = getOnlyBosses(),
     Callback = function(selected)
-        selectedBoss = bossObjects[selected]
+        selectedBossName = selected
     end
 })
 
--- ۲. دکمه رفرش لیست باس‌ها
+-- اصلاح دکمه آپدیت طبق داکیومنت
 FarmTab:Button({
-    Title = "آپدیت لیست باس‌ها",
+    Title = "به‌روزرسانی لیست باس‌ها",
     Callback = function()
-        local newList = refreshBossList()
-        BossDropdown:SetValues(newList)
+        local newList = getOnlyBosses()
+        BossDropdown:SetValues(newList) -- متد درست طبق داکیومنت WindUI
     end
 })
 
--- ۳. تاگل شروع فارم (تلپورت به باس)
 local StartBossFarm
 StartBossFarm = FarmTab:Toggle({
-    Title = "شروع فارم باس",
+    Title = "شروع حرکت به سمت باس",
     Callback = function(state)
         _G.BossFarm = state
         
         if not state then
-            -- توقف تلپورت
             if bossLoop then bossLoop:Disconnect() bossLoop = nil end
-            local char = game.Players.LocalPlayer.Character
-            if char and char:FindFirstChild("HumanoidRootPart") then
-                char.HumanoidRootPart.Velocity = Vector3.new(0,0,0)
+            local lp = game.Players.LocalPlayer
+            local char = lp.Character
+            if char then
+                local hum = char:FindFirstChild("Humanoid")
+                local hrp = char:FindFirstChild("HumanoidRootPart")
+                if hum then 
+                    hum.PlatformStand = false 
+                    hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
+                end
+                if hrp then 
+                    -- حذف نیروهای اضافه برای جلوگیری از خشک شدن کاراکتر
+                    for _, v in pairs(hrp:GetChildren()) do
+                        if v:IsA("BodyVelocity") or v:IsA("BodyGyro") then v:Destroy() end
+                    end
+                    hrp.Velocity = Vector3.new(0,0,0) 
+                end
+                -- برگرداندن برخورد
                 for _, p in pairs(char:GetDescendants()) do
                     if p:IsA("BasePart") then p.CanCollide = true end
                 end
             end
         else
-            -- بررسی انتخاب باس
-            if not selectedBoss or not selectedBoss.Parent or not selectedBoss:FindFirstChild("HumanoidRootPart") then
-                StartBossFarm:SetValue(false)
-                return
-            end
-            
             task.spawn(function()
                 local lp = game.Players.LocalPlayer
-                local char = lp.Character
-                local hrp = char and char:FindFirstChild("HumanoidRootPart")
-                local hum = char and char:FindFirstChild("Humanoid")
                 
-                if hrp and hum and _G.BossFarm then
-                    hum:ChangeState(Enum.HumanoidStateType.Physics)
+                while _G.BossFarm do
+                    local char = lp.Character
+                    local targetBoss = bossObjects[selectedBossName]
                     
-                    bossLoop = game:GetService("RunService").Heartbeat:Connect(function()
-                        if not _G.BossFarm or not selectedBoss or not selectedBoss.Parent or selectedBoss.Humanoid.Health <= 0 then
-                            if bossLoop then bossLoop:Disconnect() end
-                            StartBossFarm:SetValue(false)
-                            return
-                        end
+                    if char and targetBoss and targetBoss.Parent and targetBoss.Humanoid.Health > 0 then
+                        local hrp = char:FindFirstChild("HumanoidRootPart")
+                        local hum = char:FindFirstChild("Humanoid")
+                        local targetHrp = targetBoss:FindFirstChild("HumanoidRootPart")
                         
-                        -- مختصات باس (کمی بالاتر برای امنیت)
-                        local targetPos = selectedBoss.HumanoidRootPart.Position + Vector3.new(0, 30, 0)
-                        local dist = (targetPos - hrp.Position).Magnitude
-                        
-                        -- نوکلیپ
-                        for _, part in pairs(char:GetDescendants()) do
-                            if part:IsA("BasePart") then part.CanCollide = false end
+                        if hrp and targetHrp and hum then
+                            hum.PlatformStand = true
+                            hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+                            
+                            -- استفاده از BodyVelocity برای حرکت نرم‌تر و جلوگیری از "سکته" کاراکتر
+                            local bv = hrp:FindFirstChild("FarmBV") or Instance.new("BodyVelocity")
+                            bv.Name = "FarmBV"
+                            bv.Parent = hrp
+                            bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                            
+                            local bg = hrp:FindFirstChild("FarmBG") or Instance.new("BodyGyro")
+                            bg.Name = "FarmBG"
+                            bg.Parent = hrp
+                            bg.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                            bg.P = 30000
+
+                            -- نقطه هدف: بالای سر باس
+                            local targetPos = targetHrp.Position + Vector3.new(0, 5, 0)
+                            local dist = (targetPos - hrp.Position).Magnitude
+                            
+                            if dist > 10 then
+                                bv.Velocity = (targetPos - hrp.Position).Unit * 300
+                                bg.CFrame = CFrame.new(hrp.Position, targetPos)
+                            else
+                                bv.Velocity = Vector3.new(0, 0, 0)
+                                hrp.CFrame = CFrame.new(targetPos)
+                            end
+                            
+                            -- نوکلیپ
+                            for _, part in pairs(char:GetDescendants()) do
+                                if part:IsA("BasePart") then part.CanCollide = false end
+                            end
                         end
-                        
-                        if dist > 10 then
-                            hrp.Velocity = (targetPos - hrp.Position).Unit * 300
-                            hrp.CFrame = CFrame.new(hrp.Position, targetPos)
-                        else
-                            -- وقتی رسیدیم، دقیقاً بالای سرش نگه دار
-                            hrp.Velocity = Vector3.new(0,0,0)
-                            hrp.CFrame = CFrame.new(selectedBoss.HumanoidRootPart.Position + Vector3.new(0, 5, 0))
+                    else
+                        -- اگر باس مرد یا پیدا نشد، متوقف شو
+                        if bossLoop then bossLoop:Disconnect() bossLoop = nil end
+                        -- پاکسازی نیروها
+                        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+                        if hrp then
+                             if hrp:FindFirstChild("FarmBV") then hrp.FarmBV:Destroy() end
+                             if hrp:FindFirstChild("FarmBG") then hrp.FarmBG:Destroy() end
                         end
-                    end)
+                    end
+                    task.wait() -- صبر برای لوپ بعدی
                 end
             end)
         end
     end
 })
-
