@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kooon",
+    Title = "Beta-kds",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -442,6 +442,11 @@ local FruitESP = EspTab:Toggle({
                         
                         if isFruit and handle then
                             local fruitName = v.Name:gsub("Physical ", ""):gsub(" Fruit", "")
+                            
+                            if fruitName == "" or not fruitName then
+                                fruitName = "Fruit"
+                            end
+                            
                             ManageESP(handle, "🍎 " .. fruitName, Color3.fromRGB(100, 255, 100), "Fruit", true)
                         end
                     end
