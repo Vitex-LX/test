@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kooon",
+    Title = "Beta-fixed",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -68,14 +68,12 @@ local function refreshIslandList()
         for _, v in pairs(locs:GetChildren()) do
             if not v.Name:find("Sea") then
                 local name = v.Name
-                -- شماره‌گذاری اسامی تکراری
                 if nameCount[name] then
                     nameCount[name] = nameCount[name] + 1
                     name = name .. " " .. nameCount[name]
                 else
                     nameCount[name] = 1
                 end
-                
                 table.insert(islandNames, name)
                 islandObjects[name] = v
             end
@@ -88,15 +86,23 @@ end
 refreshIslandList()
 
 local function stopTeleport()
-    _G.Teleporting = false
     if tpLoop then tpLoop:Disconnect() tpLoop = nil end
     
     local char = game.Players.LocalPlayer.Character
     local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local hum = char and char:FindFirstChild("Humanoid")
     
     if hrp then
         hrp.Velocity = Vector3.new(0,0,0)
-        -- برگرداندن جاذبه و برخورد
+    end
+    
+    if hum then
+        hum.PlatformStand = false
+        hum:SetStateEnabled(Enum.HumanoidStateType.Seated, true) -- فعال کردن مجدد نشستن
+        hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+    end
+
+    if char then
         for _, v in pairs(char:GetDescendants()) do
             if v:IsA("BasePart") then v.CanCollide = true end
         end
@@ -115,7 +121,6 @@ local IslandDropdown = TeleportTab:Dropdown({
 })
 
 local StartTP 
-
 StartTP = TeleportTab:Toggle({
     Title = "شروع تلپورت",
     Callback = function(state)
@@ -124,10 +129,7 @@ StartTP = TeleportTab:Toggle({
         if not state then
             stopTeleport()
         else
-            if not selectedIslandCFrame then 
-                StartTP:SetValue(false)
-                return 
-            end
+            if not selectedIslandCFrame then return end
             
             task.spawn(function()
                 local lp = game.Players.LocalPlayer
@@ -136,39 +138,36 @@ StartTP = TeleportTab:Toggle({
                 local hum = char and char:FindFirstChild("Humanoid")
                 
                 if hrp and hum and _G.Teleporting then
-                    -- غیرفعال کردن موقت حالت‌های انیمیشن برای استوپ کردن لرزش
-                    hum:ChangeState(Enum.HumanoidStateType.Physics)
+                    -- تنظیمات اولیه برای جلوگیری از لرزش و نشستن
+                    hum.PlatformStand = true
+                    hum:SetStateEnabled(Enum.HumanoidStateType.Seated, false) -- غیرفعال کردن صندلی
                     
                     local speed = 300
                     
-                    tpLoop = game:GetService("RunService").Heartbeat:Connect(function(dt)
+                    tpLoop = game:GetService("RunService").Heartbeat:Connect(function()
                         if not _G.Teleporting or not char or not hrp.Parent then
                             stopTeleport()
                             return
                         end
                         
-                        -- هدف نهایی با کمی ارتفاع برای گیر نکردن در زمین
-                        local targetPos = selectedIslandCFrame.Position + Vector3.new(0, 50, 0)
+                        local targetPos = selectedIslandCFrame.Position + Vector3.new(0, 60, 0)
                         local currentPos = hrp.Position
                         local diff = targetPos - currentPos
                         local dist = diff.Magnitude
                         
-                        -- نوکلیپ مداوم
+                        -- نوی کلیپ مداوم
                         for _, part in pairs(char:GetDescendants()) do
                             if part:IsA("BasePart") then part.CanCollide = false end
                         end
                         
                         if dist > 5 then
-                            -- حرکت نرم بدون لرزش دوربین
                             hrp.Velocity = diff.Unit * speed
-                            -- رو به جلو نگاه کردن
-                            hrp.CFrame = CFrame.new(currentPos, targetPos)
+                            -- چرخش کاراکتر فقط در محور افقی (جلوگیری از کله‌معلق شدن)
+                            hrp.CFrame = CFrame.new(currentPos, Vector3.new(targetPos.X, currentPos.Y, targetPos.Z))
                         else
-                            -- رسیدن به مقصد
+                            -- رسیدن به مقصد (ایستادن روی زمین)
                             hrp.Velocity = Vector3.new(0,0,0)
                             hrp.CFrame = selectedIslandCFrame
-                            stopTeleport()
-                            StartTP:SetValue(false)
                         end
                     end)
                 end
