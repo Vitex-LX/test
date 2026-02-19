@@ -405,45 +405,79 @@ local FruitTab = Window:Tab({
     Icon = "banana",
 })
 
+-- متغیرها برای مدیریت توقف فوری
+local currentFruitTween
+local currentBv
+local currentNoclip
+
+-- تابعی برای توقف کامل تلپورت و برگرداندن فیزیک کاراکتر
+local function cancelFruitTeleport()
+    if currentFruitTween then 
+        currentFruitTween:Cancel() 
+        currentFruitTween = nil 
+    end
+    if currentBv then 
+        currentBv:Destroy() 
+        currentBv = nil 
+    end
+    if currentNoclip then 
+        currentNoclip:Disconnect() 
+        currentNoclip = nil 
+    end
+    
+    -- برگرداندن حالت برخورد کاراکتر (برای جلوگیری از افتادن زیر مپ)
+    local character = game.Players.LocalPlayer.Character
+    if character then
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = true
+            end
+        end
+    end
+end
+
 local function teleportToFruit(targetCFrame)
     local character = game.Players.LocalPlayer.Character
     if not character or not character:FindFirstChild("HumanoidRootPart") then return end
     
     local hrp = character.HumanoidRootPart
     local distance = (targetCFrame.Position - hrp.Position).Magnitude
-    local speed = 250 -- سرعت طبق سورس شما
+    local speed = 250 -- سرعت تلپورت
     local duration = distance / speed
 
-    -- جلوگیری از لرزش و افتادن
-    local bv = Instance.new("BodyVelocity")
-    bv.Velocity = Vector3.new(0, 0, 0)
-    bv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    bv.Parent = hrp
+    cancelFruitTeleport() -- پاکسازی هر تلپورت قبلی قبل از شروع مسیر جدید
 
-    -- حالت Noclip
-    local noclipLoop = game:GetService("RunService").Stepped:Connect(function()        for _, part in pairs(character:GetDescendants()) do
+    -- ثابت نگه داشتن کاراکتر در هوا
+    currentBv = Instance.new("BodyVelocity")
+    currentBv.Velocity = Vector3.new(0, 0, 0)
+    currentBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    currentBv.Parent = hrp
+
+    -- حالت Noclip برای رد شدن از دیوارها
+    currentNoclip = game:GetService("RunService").Stepped:Connect(function()
+        for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
             end
         end
     end)
 
-    local tween = game:GetService("TweenService"):Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
-    
-    tween:Play()
+    currentFruitTween = game:GetService("TweenService"):Create(hrp, TweenInfo.new(duration, Enum.EasingStyle.Linear), {CFrame = targetCFrame})
+    currentFruitTween:Play()
     
     local reached = false
-    tween.Completed:Connect(function()
-        bv:Destroy()
-        noclipLoop:Disconnect()        reached = true
+    currentFruitTween.Completed:Connect(function()
+        reached = true
+        if _G.AutoFruit then
+            cancelFruitTeleport()
+        end
     end)
 
-    -- منتظر ماندن تا رسیدن یا خاموش کردن تاگل    repeat task.wait(0.1) until reached or not _G.AutoFruit
+    -- منتظر ماندن تا رسیدن به مقصد یا خاموش شدن تاگل
+    repeat task.wait(0.1) until reached or not _G.AutoFruit
     
     if not _G.AutoFruit then 
-        tween:Cancel() 
-        bv:Destroy()
-        noclipLoop:Disconnect()
+        cancelFruitTeleport()
     end
 end
 
@@ -452,31 +486,36 @@ local AutoFruit = FruitTab:Toggle({
     Callback = function(state)
         _G.AutoFruit = state
         
-        task.spawn(function()
-            while _G.AutoFruit do
-                local fruitFound = false
-                
-                for _, v in pairs(workspace:GetChildren()) do
-                    if not _G.AutoFruit then break end                    
-                    -- پیدا کردن میوه (Tool یا Model)
-                    if (v:IsA("Tool") or v:IsA("Model")) and v.Name:find("Fruit") then
-                        local handle = v:FindFirstChild("Handle") or v:FindFirstChildOfClass("BasePart")
+        if not state then
+            -- توقف فوری در صورت خاموش شدن تاگل
+            cancelFruitTeleport()
+        else
+            task.spawn(function()
+                while _G.AutoFruit do
+                    for _, v in pairs(workspace:GetChildren()) do
+                        if not _G.AutoFruit then break end
                         
-                        if handle then
-                            fruitFound = true
-                            -- تلپورت به موقعیت میوه
-                            teleportToFruit(handle.CFrame)
-                            task.wait(1) -- مکث برای برداشتن میوه
+                        -- پیدا کردن میوه
+                        if (v:IsA("Tool") or v:IsA("Model")) and v.Name:find("Fruit") then
+                            local handle = v:FindFirstChild("Handle") or v:FindFirstChildOfClass("BasePart")
+                            
+                            if handle then
+                                teleportToFruit(handle.CFrame)
+                                
+                                -- اگر وسط تلپورت خاموش کردیم دیگه ادامه نده
+                                if not _G.AutoFruit then break end
+                                
+                                -- یک مکث کوتاه نیم ثانیه‌ای فقط برای اینکه بازی وقت کنه میوه رو برداره
+                                task.wait(0.5)
+                            end
                         end
                     end
+                    
+                    -- تایمر طولانی حذف شد. 
+                    -- این مکث 0.1 ثانیه‌ای حیاتی است تا بازی شما کرش نکند و فریز نشود.
+                    task.wait(0.1)
                 end
-                
-                if not fruitFound then
-                    -- اگر میوه‌ای نبود، هر 5 ثانیه چک کن
-                    task.wait(5)
-                end
-                task.wait(0.1)
-            end
-        end)
+            end)
+        end
     end
 })
