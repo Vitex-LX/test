@@ -11,7 +11,7 @@ local Window = WindUI:CreateWindow({
 })
 
 Window:Tag({
-    Title = "Beta-kooon",
+    Title = "Beta-dih",
     Icon = "history",
     Color = Color3.fromHex("#5f0188"),
     Radius = 0,
@@ -834,3 +834,4 @@ local NearFarmToggle = FarmTab:Toggle({
         end
     end
 })
+
