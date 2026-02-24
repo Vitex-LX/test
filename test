@@ -1,112 +1,172 @@
--- بارگذاری سرویس‌ها
+-- تعریف تمام سرویس‌ها به صورت کاملاً محلی
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 -- بارگذاری کتابخانه
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- متغیرهای محلی برای ریموت‌ها و داده‌ها
+-- متغیرهای پایه پلیر و وضعیت‌ها
 local LocalPlayer = Players.LocalPlayer
-local ShootEvent = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/ShootGunEvent")
-local ValidEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Validator2")
+local SelectedPlayerName = ""
+local IsOrbiting = false
+local FastAttackEnabled = false
 
-local IsAutoShootEnabled = false
-local LastValidatorKey = 15003121 -- مقدار پیش‌فرض
-local LastValidatorArg2 = 16    -- مقدار پیش‌فرض دوم
-
--- ایجاد پنجره و تب
+-- ایجاد پنجره اصلی
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub - Dynamic",
-    Icon   = "cpu",
+    Title  = "Vitex Hub - PVP Pro",
+    Icon   = "user-round-search",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
 })
 
+-- ایجاد تب اصلی
 local MainTab = Window:Tab({
-    Title = "Advanced Combat",
-    Icon = "zap",
+    Title = "Player Attack",
+    Icon = "target",
 })
 
--- [بخش هوشمند: قاپ زدن اعداد متغیر ریموت]
-local OldNamecall
-OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
-    local Args = {...}
-    local Method = getnamecallmethod()
-    
-    -- اگر بازی داشت ریموت تاییدیه را می‌فرستاد، اعدادش را ذخیره کن
-    if not checkcaller() and Self == ValidEvent and Method == "FireServer" then
-        LastValidatorKey = Args[1]
-        LastValidatorArg2 = Args[2]
-    end
-    
-    return OldNamecall(Self, ...)
-end))
-
--- تابع محلی برای پیدا کردن NPC
-local function GetClosestNPC()
-    local Target = nil
-    local Distance = 1000
-    local MyChar = LocalPlayer.Character
-    local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
-    
-    if not MyRoot then return nil end
-
-    local Descendants = game:GetService("Workspace"):GetDescendants()
-    for i = 1, #Descendants do
-        local v = Descendants[i]
-        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
-            if not Players:GetPlayerFromCharacter(v) and v.Humanoid.Health > 0 then
-                local Mag = (v.HumanoidRootPart.Position - MyRoot.Position).Magnitude
-                if Mag < Distance then
-                    Distance = Mag
-                    Target = v
-                end
-            end
+-- تابع محلی برای گرفتن لیست پلیرها
+local function GetPlayerList()
+    local List = {}
+    local AllPlayers = Players:GetPlayers()
+    for i = 1, #AllPlayers do
+        local p = AllPlayers[i]
+        if p ~= LocalPlayer then
+            table.insert(List, p.Name)
         end
     end
-    return Target
+    return List
 end
 
--- حلقه شلیک با اعداد داینامیک
+-- ایجاد Dropdown برای انتخاب پلیر
+local PlayerDropdown = MainTab:Dropdown({
+    Title = "انتخاب پلیر هدف",
+    Multi = false,
+    Options = GetPlayerList(),
+    Callback = function(Selected)
+        SelectedPlayerName = Selected
+    end
+})
+
+-- دکمه رفرش لیست پلیرها
+local RefreshBtn = MainTab:Button({
+    Title = "بروزرسانی لیست",
+    Callback = function()
+        local NewList = GetPlayerList()
+        PlayerDropdown:Refresh(NewList)
+    end
+})
+
+-- سیستم حرکت و چرخش (Orbit) با سرعت ثابت
 task.spawn(function()
-    while task.wait(0.1) do
-        if IsAutoShootEnabled then
-            local Char = LocalPlayer.Character
-            local Tool = Char and Char:FindFirstChildOfClass("Tool")
+    local Angle = 0
+    while true do
+        if IsOrbiting and SelectedPlayerName ~= "" then
+            local TargetPlayer = Players:FindFirstChild(SelectedPlayerName)
+            local TargetChar = TargetPlayer and TargetPlayer.Character
+            local TargetRoot = TargetChar and TargetChar:FindFirstChild("HumanoidRootPart")
             
-            if Tool then
-                local TargetNPC = GetClosestNPC()
-                if TargetNPC then
-                    local Pos = TargetNPC.HumanoidRootPart.Position
-                    
-                    -- ارسال تاییدیه با آخرین عددی که از خود بازی گرفتیم
-                    ValidEvent:FireServer(LastValidatorKey, LastValidatorArg2)
-                    
-                    -- شلیک
-                    ShootEvent:FireServer(vector.create(Pos.X, Pos.Y, Pos.Z), {})
-                end
+            local MyChar = LocalPlayer.Character
+            local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
+
+            if TargetRoot and MyRoot then
+                Angle = Angle + math.rad(8) -- سرعت چرخش دور پلیر
+                local Offset = Vector3.new(math.cos(Angle) * 12, 18, math.sin(Angle) * 12)
+                local TargetPos = TargetRoot.Position + Offset
+                
+                -- محاسبه فاصله و زمان برای سرعت 250+
+                local Distance = (MyRoot.Position - TargetPos).Magnitude
+                local Speed = 350 
+                local Time = Distance / Speed
+
+                local Info = TweenInfo.new(Time, Enum.EasingStyle.Linear)
+                local OrbitTween = TweenService:Create(MyRoot, Info, {CFrame = CFrame.new(TargetPos, TargetRoot.Position)})
+                OrbitTween:Play()
+                OrbitTween.Completed:Wait()
             end
         end
+        task.wait()
     end
 end)
 
--- اجزای UI
-local MainToggle = MainTab:Toggle({
-    Title = "Auto Shoot (Dynamic Key)",
+-- تاگل چرخش
+local OrbitToggle = MainTab:Toggle({
+    Title = "چرخش و تعقیب (Orbit)",
     Value = false,
     Callback = function(State)
-        IsAutoShootEnabled = State
-        
-        local Notif = WindUI:Notify({
-            Title = "Bypass System",
-            Content = State and "سیستم دور زدن آنتی‌چیت فعال شد" or "غیرفعال شد",
-            Type = "Success"
-        })
+        IsOrbiting = State
+        if not State then
+            -- توقف فوری جابجایی
+            local MyRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if MyRoot then
+                local StopTween = TweenService:Create(MyRoot, TweenInfo.new(0.05), {CFrame = MyRoot.CFrame})
+                StopTween:Play()
+            end
+        end
     end
 })
 
-local InfoLabel = MainTab:Button({
-    Title = "نکته: برای شروع یکبار دستی شلیک کنید تا کد تایید شناسایی شود",
-    Callback = function() end
+-- [ سیستم حمله خودکار طبق سورس ارسالی با رعایت local ]
+local AttackToggle = MainTab:Toggle({
+    Title = "حمله خودکار (Fast Attack)",
+    Value = false,
+    Callback = function(State)
+        FastAttackEnabled = State
+        
+        if State then
+            task.spawn(function()
+                -- توابع داخلی برای امنیت و سرعت
+                local function FindRemote(Parent, Keyword)
+                    if not Parent then return nil end
+                    local Descendants = Parent:GetDescendants()
+                    for i = 1, #Descendants do
+                        local v = Descendants[i]
+                        if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) and v.Name:lower():find(Keyword:lower()) then
+                            return v
+                        end
+                    end
+                    return nil
+                end
+
+                local NetFolder = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+                local RegAttack = FindRemote(NetFolder, "RegisterAttack")
+                local RegHit = FindRemote(NetFolder, "RegisterHit")
+                
+                local RemotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
+                local Remote874 = nil
+                if RemotesFolder then
+                    local Children = RemotesFolder:GetChildren()
+                    for i = 1, #Children do
+                        if Children[i]:IsA("RemoteEvent") then Remote874 = Children[i] break end
+                    end
+                end
+
+                while FastAttackEnabled do
+                    local MyChar = LocalPlayer.Character
+                    local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
+                    local Tool = MyChar and MyChar:FindFirstChildOfClass("Tool")
+
+                    if MyRoot and Tool then
+                        -- پیدا کردن هدف
+                        local TargetPlayer = Players:FindFirstChild(SelectedPlayerName)
+                        local TargetChar = TargetPlayer and TargetPlayer.Character
+                        local TargetRoot = TargetChar and (TargetChar:FindFirstChild("HumanoidRootPart") or TargetChar:FindFirstChild("Head"))
+                        
+                        if TargetRoot and (TargetRoot.Position - MyRoot.Position).Magnitude < 70 then
+                            if RegAttack then RegAttack:FireServer(0.4) end
+                            if RegHit then RegHit:FireServer(TargetRoot, {}, nil, "694ba46d") end
+                            if Remote874 then
+                                local Args = {[1] = "VA+VacmwpavLmp", [2] = 13064117, [3] = TargetRoot, [4] = {}, [6] = "869bada7"}
+                                Remote874:FireServer(unpack(Args))
+                            end
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
 })
