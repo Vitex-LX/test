@@ -18,8 +18,8 @@ local currentOrbitBv = nil
 
 -- ۱. ایجاد پنجره اصلی (Local)
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub - Fruit Support",
-    Icon   = "apple",
+    Title  = "Vitex Hub - Fruit Pro",
+    Icon   = "zap",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
@@ -48,7 +48,7 @@ local PlayerDrop = MainTab:Dropdown({
     Callback = function(v) SelectedPlayerName = v end
 })
 
--- ۴. دکمه رفرش لیست (Local)
+-- ۴. دکمه رفرش لیست
 local RefreshBtn = MainTab:Button({
     Title = "بروزرسانی لیست پلیرها",
     Callback = function() PlayerDrop:Refresh(GetPlayerList()) end
@@ -66,7 +66,7 @@ local function StopMovement()
     end
 end
 
--- ۵. تعقیب مربعی بالای سر
+-- ۵. تعقیب مربعی بالای سر (Square Orbit)
 local OrbitToggle = MainTab:Toggle({
     Title = "تعقیب مربعی (Above Head)",
     Value = false,
@@ -112,15 +112,14 @@ local OrbitToggle = MainTab:Toggle({
     end
 })
 
--- ۶. حمله خودکار (Combat + Fruit Support)
+-- ۶. حمله خودکار (Full Fruit + Combat Support)
 local AttackToggle = MainTab:Toggle({
-    Title = "حمله خودکار (Combat + Fruit)",
+    Title = "حمله خودکار (Fruit Fix)",
     Value = false,
     Callback = function(state)
         FastAttackEnabled = state
         if state then
             task.spawn(function()
-                -- توابع پیدا کردن ریموت‌های عمومی
                 local function findRemote(parent, keyword)
                     if not parent then return nil end
                     for _, v in pairs(parent:GetDescendants()) do
@@ -139,19 +138,26 @@ local AttackToggle = MainTab:Toggle({
                         local tool = char and char:FindFirstChildOfClass("Tool")
                         
                         if char and tool then
-                            -- الف) بخش Fruit Attack (اختصاصی برای میوه‌ها)
-                            local FruitRemote = tool:FindFirstChild("LeftClickRemote")
-                            if FruitRemote then
-                                -- ارسال مختصات به سمت هدف
-                                local target = Players:FindFirstChild(SelectedPlayerName)
-                                local tRoot = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
-                                if tRoot then
-                                    local direction = (tRoot.Position - char.HumanoidRootPart.Position).Unit
-                                    FruitRemote:FireServer(direction, 4)
+                            -- الف) شلیک میوه (LeftClick + RemoteEvent Fix)
+                            local FruitClick = tool:FindFirstChild("LeftClickRemote")
+                            local FruitEvent = tool:FindFirstChild("RemoteEvent") -- ریموت دومی که گفتی
+                            
+                            local targetPlr = Players:FindFirstChild(SelectedPlayerName)
+                            local tRoot = targetPlr and targetPlr.Character and targetPlr.Character:FindFirstChild("HumanoidRootPart")
+                            
+                            if tRoot then
+                                -- اجرای ریموت اول (شلیک)
+                                if FruitClick then
+                                    local dir = (tRoot.Position - char.HumanoidRootPart.Position).Unit
+                                    FruitClick:FireServer(dir, 4)
+                                end
+                                -- اجرای ریموت دوم (تکمیلی که فرستادی)
+                                if FruitEvent then
+                                    FruitEvent:FireServer(false)
                                 end
                             end
 
-                            -- ب) بخش Combat Attack (ریموت‌های عمومی بازی)
+                            -- ب) دمیج عمومی (Combat)
                             if tick() - lastRef > 5 then
                                 local net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
                                 rAtk = findRemote(net, "RegisterAttack")
@@ -164,14 +170,14 @@ local AttackToggle = MainTab:Toggle({
                             if rAtk then rAtk:FireServer(0.4) end
 
                             local function Damage(targetModel)
-                                local tRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
-                                if tRoot and (tRoot.Position - char.HumanoidRootPart.Position).Magnitude < 70 then
-                                    if rHit then rHit:FireServer(tRoot, {}, nil, "694ba46d") end
-                                    if r874 then r874:FireServer("VA+VacmwpavLmp", 13064117, tRoot, {}, "869bada7") end
+                                local tr = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
+                                if tr and (tr.Position - char.HumanoidRootPart.Position).Magnitude < 70 then
+                                    if rHit then rHit:FireServer(tr, {}, nil, "694ba46d") end
+                                    if r874 then r874:FireServer("VA+VacmwpavLmp", 13064117, tr, {}, "869bada7") end
                                 end
                             end
 
-                            -- اعمال دمیج به همه
+                            -- اعمال دمیج به NPC و پلیرها
                             if workspace:FindFirstChild("Enemies") then
                                 for _, e in pairs(workspace.Enemies:GetChildren()) do Damage(e) end
                             end
@@ -180,7 +186,7 @@ local AttackToggle = MainTab:Toggle({
                             end
                         end
                     end)
-                    task.wait(0.1) -- سرعت اتک
+                    task.wait(0.1)
                 end
             end)
         end
