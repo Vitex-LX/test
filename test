@@ -1,50 +1,63 @@
--- تعریف کتابخانه به صورت کاملاً محلی
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-
--- تعریف سرویس‌ها
+-- بارگذاری سرویس‌ها
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 
--- متغیرهای پایه پلیر
+-- بارگذاری کتابخانه
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+
+-- متغیرهای محلی برای ریموت‌ها و داده‌ها
 local LocalPlayer = Players.LocalPlayer
 local ShootEvent = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/ShootGunEvent")
+local ValidEvent = ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("Validator2")
 
--- وضعیت‌های کنترلی
 local IsAutoShootEnabled = false
+local LastValidatorKey = 15003121 -- مقدار پیش‌فرض
+local LastValidatorArg2 = 16    -- مقدار پیش‌فرض دوم
 
--- ایجاد پنجره اصلی (ذخیره در متغیر محلی)
+-- ایجاد پنجره و تب
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub",
-    Icon   = "target",
+    Title  = "Vitex Hub - Dynamic",
+    Icon   = "cpu",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
 })
 
--- ایجاد تب (ذخیره در متغیر محلی)
 local MainTab = Window:Tab({
-    Title = "PVP / Farming",
-    Icon = "swords",
+    Title = "Advanced Combat",
+    Icon = "zap",
 })
 
--- تابع محلی برای پیدا کردن نزدیک‌ترین NPC
+-- [بخش هوشمند: قاپ زدن اعداد متغیر ریموت]
+local OldNamecall
+OldNamecall = hookmetamethod(game, "__namecall", newcclosure(function(Self, ...)
+    local Args = {...}
+    local Method = getnamecallmethod()
+    
+    -- اگر بازی داشت ریموت تاییدیه را می‌فرستاد، اعدادش را ذخیره کن
+    if not checkcaller() and Self == ValidEvent and Method == "FireServer" then
+        LastValidatorKey = Args[1]
+        LastValidatorArg2 = Args[2]
+    end
+    
+    return OldNamecall(Self, ...)
+end))
+
+-- تابع محلی برای پیدا کردن NPC
 local function GetClosestNPC()
     local Target = nil
-    local Distance = 1500 -- شعاع عملکرد
+    local Distance = 1000
     local MyChar = LocalPlayer.Character
-    local MyPos = MyChar and MyChar:FindFirstChild("HumanoidRootPart") and MyChar.HumanoidRootPart.Position
+    local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
+    
+    if not MyRoot then return nil end
 
-    if not MyPos then return nil end
-
-    -- جستجو در تمام محیط بازی برای پیدا کردن مدل‌های زنده غیر پلیر
-    local AllDescendants = game:GetService("Workspace"):GetDescendants()
-    for i = 1, #AllDescendants do
-        local v = AllDescendants[i]
+    local Descendants = game:GetService("Workspace"):GetDescendants()
+    for i = 1, #Descendants do
+        local v = Descendants[i]
         if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
-            -- چک کردن اینکه پلیر نباشد و جان داشته باشد
             if not Players:GetPlayerFromCharacter(v) and v.Humanoid.Health > 0 then
-                local Mag = (v.HumanoidRootPart.Position - MyPos).Magnitude
+                local Mag = (v.HumanoidRootPart.Position - MyRoot.Position).Magnitude
                 if Mag < Distance then
                     Distance = Mag
                     Target = v
@@ -55,52 +68,45 @@ local function GetClosestNPC()
     return Target
 end
 
--- حلقه شلیک خودکار
+-- حلقه شلیک با اعداد داینامیک
 task.spawn(function()
-    while task.wait() do -- اجرای سریع
+    while task.wait(0.1) do
         if IsAutoShootEnabled then
-            local CurrentChar = LocalPlayer.Character
-            local Tool = CurrentChar and CurrentChar:FindFirstChildOfClass("Tool")
+            local Char = LocalPlayer.Character
+            local Tool = Char and Char:FindFirstChildOfClass("Tool")
             
-            -- اگر تفنگ دستمون بود (هر تفنگی)
             if Tool then
                 local TargetNPC = GetClosestNPC()
                 if TargetNPC then
                     local Pos = TargetNPC.HumanoidRootPart.Position
                     
-                    -- ارسال ریموت دقیقاً با فرمت ارسالی شما
-                    local Args = {
-                        [1] = vector.create(Pos.X, Pos.Y, Pos.Z),
-                        [2] = {}
-                    }
-                    ShootEvent:FireServer(unpack(Args))
+                    -- ارسال تاییدیه با آخرین عددی که از خود بازی گرفتیم
+                    ValidEvent:FireServer(LastValidatorKey, LastValidatorArg2)
+                    
+                    -- شلیک
+                    ShootEvent:FireServer(vector.create(Pos.X, Pos.Y, Pos.Z), {})
                 end
             end
         end
     end
 end)
 
--- اضافه کردن اجزای UI با رعایت local برای هر کدام
-local AutoShootToggle = MainTab:Toggle({
-    Title = "Auto Shoot (Gun + NPC)",
+-- اجزای UI
+local MainToggle = MainTab:Toggle({
+    Title = "Auto Shoot (Dynamic Key)",
     Value = false,
     Callback = function(State)
         IsAutoShootEnabled = State
         
-        -- نوتیفیکیشن محلی
-        local NotifyStatus = WindUI:Notify({
-            Title = "Combat System",
-            Content = State and "سیستم شلیک خودکار فعال شد" or "سیستم غیرفعال شد",
-            Type = "Info"
+        local Notif = WindUI:Notify({
+            Title = "Bypass System",
+            Content = State and "سیستم دور زدن آنتی‌چیت فعال شد" or "غیرفعال شد",
+            Type = "Success"
         })
     end
 })
 
-local MyDivider = MainTab:Divider()
-
-local InfoButton = MainTab:Button({
-    Title = "وضعیت: آماده شلیک به NPCها",
-    Callback = function() 
-        print("Vitex Hub is running.")
-    end
+local InfoLabel = MainTab:Button({
+    Title = "نکته: برای شروع یکبار دستی شلیک کنید تا کد تایید شناسایی شود",
+    Callback = function() end
 })
