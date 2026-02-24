@@ -18,8 +18,8 @@ local currentOrbitBv = nil
 
 -- ۱. ایجاد پنجره اصلی (Local)
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub - Square Orbit",
-    Icon   = "box",
+    Title  = "Vitex Hub - Fruit Support",
+    Icon   = "apple",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
@@ -34,9 +34,7 @@ local MainTab = Window:Tab({
 -- تابع لیست پلیرها
 local function GetPlayerList()
     local list = {}
-    local allPlayers = Players:GetPlayers()
-    for i = 1, #allPlayers do
-        local p = allPlayers[i]
+    for _, p in pairs(Players:GetPlayers()) do
         if p ~= lp then table.insert(list, p.Name) end
     end
     return list
@@ -53,9 +51,7 @@ local PlayerDrop = MainTab:Dropdown({
 -- ۴. دکمه رفرش لیست (Local)
 local RefreshBtn = MainTab:Button({
     Title = "بروزرسانی لیست پلیرها",
-    Callback = function() 
-        PlayerDrop:Refresh(GetPlayerList()) 
-    end
+    Callback = function() PlayerDrop:Refresh(GetPlayerList()) end
 })
 
 -- تابع پاکسازی فیزیک
@@ -70,7 +66,7 @@ local function StopMovement()
     end
 end
 
--- ۵. تاگل تعقیب مربعی بالای سر (Square Orbit - High Speed)
+-- ۵. تعقیب مربعی بالای سر
 local OrbitToggle = MainTab:Toggle({
     Title = "تعقیب مربعی (Above Head)",
     Value = false,
@@ -87,15 +83,11 @@ local OrbitToggle = MainTab:Toggle({
             local myRoot = char and char:FindFirstChild("HumanoidRootPart")
 
             if tRoot and myRoot and hum then
-                -- آنتی سیت
                 if hum.Sit then hum.Sit = false hum.Jump = true end
-
-                -- Noclip
                 for _, p in pairs(char:GetDescendants()) do
                     if p:IsA("BasePart") then p.CanCollide = false end
                 end
 
-                -- BodyVelocity برای ثبات در ارتفاع
                 if not currentOrbitBv or currentOrbitBv.Parent ~= myRoot then
                     if currentOrbitBv then currentOrbitBv:Destroy() end
                     local bv = Instance.new("BodyVelocity")
@@ -105,17 +97,13 @@ local OrbitToggle = MainTab:Toggle({
                     currentOrbitBv = bv
                 end
 
-                -- منطق حرکت مربعی
-                timer = timer + (deltaTime * 5) -- سرعت حرکت دور مربع
-                local size = 5 -- اندازه ضلع مربع
+                timer = timer + (deltaTime * 5)
+                local size = 5
                 local x = math.clamp(math.cos(timer) * 10, -size, size)
                 local z = math.clamp(math.sin(timer) * 10, -size, size)
                 
-                -- ارتفاع: ۵ واحد بالای سر هدف
                 local heightOffset = 5 
                 local targetPos = tRoot.Position + Vector3.new(x, heightOffset, z)
-                
-                -- نگاه کردن به پایین (به سمت هدف)
                 myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.new(targetPos, tRoot.Position), 0.5)
             else
                 StopMovement()
@@ -124,14 +112,15 @@ local OrbitToggle = MainTab:Toggle({
     end
 })
 
--- ۶. حمله خودکار (همان منطق قبلی شما با اعمال ریموت‌ها)
+-- ۶. حمله خودکار (Combat + Fruit Support)
 local AttackToggle = MainTab:Toggle({
-    Title = "حمله خودکار (Dynamic AOE)",
+    Title = "حمله خودکار (Combat + Fruit)",
     Value = false,
     Callback = function(state)
         FastAttackEnabled = state
         if state then
             task.spawn(function()
+                -- توابع پیدا کردن ریموت‌های عمومی
                 local function findRemote(parent, keyword)
                     if not parent then return nil end
                     for _, v in pairs(parent:GetDescendants()) do
@@ -141,38 +130,48 @@ local AttackToggle = MainTab:Toggle({
                     end
                 end
 
-                local function getRemotes()
-                    local net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
-                    local atk = findRemote(net, "RegisterAttack")
-                    local hit = findRemote(net, "RegisterHit")
-                    local rFolder = ReplicatedStorage:FindFirstChild("Remotes")
-                    local r874 = rFolder and rFolder:FindFirstChildOfClass("RemoteEvent")
-                    return atk, hit, r874
-                end
-
                 local lastRef = 0
                 local rAtk, rHit, r874
 
                 while FastAttackEnabled do
                     pcall(function()
-                        if tick() - lastRef > 5 then
-                            rAtk, rHit, r874 = getRemotes()
-                            lastRef = tick()
-                        end
+                        local char = lp.Character
+                        local tool = char and char:FindFirstChildOfClass("Tool")
+                        
+                        if char and tool then
+                            -- الف) بخش Fruit Attack (اختصاصی برای میوه‌ها)
+                            local FruitRemote = tool:FindFirstChild("LeftClickRemote")
+                            if FruitRemote then
+                                -- ارسال مختصات به سمت هدف
+                                local target = Players:FindFirstChild(SelectedPlayerName)
+                                local tRoot = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+                                if tRoot then
+                                    local direction = (tRoot.Position - char.HumanoidRootPart.Position).Unit
+                                    FruitRemote:FireServer(direction, 4)
+                                end
+                            end
 
-                        local root = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-                        if root and lp.Character:FindFirstChildOfClass("Tool") then
+                            -- ب) بخش Combat Attack (ریموت‌های عمومی بازی)
+                            if tick() - lastRef > 5 then
+                                local net = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
+                                rAtk = findRemote(net, "RegisterAttack")
+                                rHit = findRemote(net, "RegisterHit")
+                                local rFolder = ReplicatedStorage:FindFirstChild("Remotes")
+                                r874 = rFolder and rFolder:FindFirstChildOfClass("RemoteEvent")
+                                lastRef = tick()
+                            end
+
                             if rAtk then rAtk:FireServer(0.4) end
 
                             local function Damage(targetModel)
                                 local tRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
-                                if tRoot and (tRoot.Position - root.Position).Magnitude < 70 then
+                                if tRoot and (tRoot.Position - char.HumanoidRootPart.Position).Magnitude < 70 then
                                     if rHit then rHit:FireServer(tRoot, {}, nil, "694ba46d") end
                                     if r874 then r874:FireServer("VA+VacmwpavLmp", 13064117, tRoot, {}, "869bada7") end
                                 end
                             end
 
-                            -- اتک به NPC و پلیرها
+                            -- اعمال دمیج به همه
                             if workspace:FindFirstChild("Enemies") then
                                 for _, e in pairs(workspace.Enemies:GetChildren()) do Damage(e) end
                             end
@@ -181,7 +180,7 @@ local AttackToggle = MainTab:Toggle({
                             end
                         end
                     end)
-                    task.wait(0.1)
+                    task.wait(0.1) -- سرعت اتک
                 end
             end)
         end
