@@ -1,46 +1,53 @@
--- بارگذاری کتابخانه به صورت محلی
+-- تعریف کتابخانه به صورت کاملاً محلی
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- تعریف پنجره اصلی
+-- تعریف سرویس‌ها
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+-- متغیرهای پایه پلیر
+local LocalPlayer = Players.LocalPlayer
+local ShootEvent = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/ShootGunEvent")
+
+-- وضعیت‌های کنترلی
+local IsAutoShootEnabled = false
+
+-- ایجاد پنجره اصلی (ذخیره در متغیر محلی)
 local Window = WindUI:CreateWindow({
     Title  = "Vitex Hub",
-    Icon   = "crosshair",
+    Icon   = "target",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
 })
 
--- تعریف تب PVP
-local PvpTab = Window:Tab({
-    Title = "PVP",
+-- ایجاد تب (ذخیره در متغیر محلی)
+local MainTab = Window:Tab({
+    Title = "PVP / Farming",
     Icon = "swords",
 })
 
--- تعریف متغیرهای محلی برای سیستم ایم‌بات
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
-local Mouse = LocalPlayer:GetMouse()
-local IsAimbotEnabled = false
-
--- تابع پیدا کردن نزدیک‌ترین پلیر
-local function GetClosestPlayer()
+-- تابع محلی برای پیدا کردن نزدیک‌ترین NPC
+local function GetClosestNPC()
     local Target = nil
-    local Distance = math.huge
-    
-    local MyCharacter = LocalPlayer.Character
-    local MyPart = MyCharacter and MyCharacter:FindFirstChild("HumanoidRootPart")
-    
-    if not MyPart then return nil end
+    local Distance = 1500 -- شعاع عملکرد
+    local MyChar = LocalPlayer.Character
+    local MyPos = MyChar and MyChar:FindFirstChild("HumanoidRootPart") and MyChar.HumanoidRootPart.Position
 
-    for _, Player in pairs(Players:GetPlayers()) do
-        if Player ~= LocalPlayer and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-            local Humanoid = Player.Character:FindFirstChild("Humanoid")
-            if Humanoid and Humanoid.Health > 0 then
-                local Magnitude = (Player.Character.HumanoidRootPart.Position - MyPart.Position).Magnitude
-                if Magnitude < Distance then
-                    Distance = Magnitude
-                    Target = Player.Character
+    if not MyPos then return nil end
+
+    -- جستجو در تمام محیط بازی برای پیدا کردن مدل‌های زنده غیر پلیر
+    local AllDescendants = game:GetService("Workspace"):GetDescendants()
+    for i = 1, #AllDescendants do
+        local v = AllDescendants[i]
+        if v:IsA("Model") and v:FindFirstChild("Humanoid") and v:FindFirstChild("HumanoidRootPart") then
+            -- چک کردن اینکه پلیر نباشد و جان داشته باشد
+            if not Players:GetPlayerFromCharacter(v) and v.Humanoid.Health > 0 then
+                local Mag = (v.HumanoidRootPart.Position - MyPos).Magnitude
+                if Mag < Distance then
+                    Distance = Mag
+                    Target = v
                 end
             end
         end
@@ -48,47 +55,52 @@ local function GetClosestPlayer()
     return Target
 end
 
--- هوک کردن متامتد برای ایم‌بات (Silent Aim)
--- این بخش باعث میشه تیرها بدون نیاز به چرخاندن دوربین به هدف بخورند
-local RawMetatable = getrawmetatable(game)
-local OldIndex = RawMetatable.__index
-setreadonly(RawMetatable, false)
-
-RawMetatable.__index = newcclosure(function(Self, Key)
-    if IsAimbotEnabled and Self == Mouse and (Key == "Hit" or Key == "Target") then
-        local TargetCharacter = GetClosestPlayer()
-        if TargetCharacter and TargetCharacter:FindFirstChild("HumanoidRootPart") then
-            if Key == "Hit" then
-                return TargetCharacter.HumanoidRootPart.CFrame
-            elseif Key == "Target" then
-                return TargetCharacter.HumanoidRootPart
+-- حلقه شلیک خودکار
+task.spawn(function()
+    while task.wait() do -- اجرای سریع
+        if IsAutoShootEnabled then
+            local CurrentChar = LocalPlayer.Character
+            local Tool = CurrentChar and CurrentChar:FindFirstChildOfClass("Tool")
+            
+            -- اگر تفنگ دستمون بود (هر تفنگی)
+            if Tool then
+                local TargetNPC = GetClosestNPC()
+                if TargetNPC then
+                    local Pos = TargetNPC.HumanoidRootPart.Position
+                    
+                    -- ارسال ریموت دقیقاً با فرمت ارسالی شما
+                    local Args = {
+                        [1] = vector.create(Pos.X, Pos.Y, Pos.Z),
+                        [2] = {}
+                    }
+                    ShootEvent:FireServer(unpack(Args))
+                end
             end
         end
     end
-    return OldIndex(Self, Key)
 end)
 
-setreadonly(RawMetatable, true)
-
--- اضافه کردن Toggle به تب PVP مطابق داکیومنت
-local AimbotToggle = PvpTab:Toggle({
-    Title = "Aimbot (Guns)",
+-- اضافه کردن اجزای UI با رعایت local برای هر کدام
+local AutoShootToggle = MainTab:Toggle({
+    Title = "Auto Shoot (Gun + NPC)",
     Value = false,
     Callback = function(State)
-        IsAimbotEnabled = State
+        IsAutoShootEnabled = State
         
-        -- نمایش نوتیفیکیشن هنگام تغییر وضعیت
-        WindUI:Notify({
-            Title = "PVP System",
-            Content = State and "ایم‌بات فعال شد" or "ایم‌بات غیرفعال شد",
+        -- نوتیفیکیشن محلی
+        local NotifyStatus = WindUI:Notify({
+            Title = "Combat System",
+            Content = State and "سیستم شلیک خودکار فعال شد" or "سیستم غیرفعال شد",
             Type = "Info"
         })
     end
 })
 
--- جداکننده و توضیحات محلی
-local InfoDivider = PvpTab:Divider()
-local InfoText = PvpTab:Button({
-    Title = "توضیح: هرجا شلیک کنید تیر به نزدیک‌ترین پلیر می‌خورد",
-    Callback = function() end
+local MyDivider = MainTab:Divider()
+
+local InfoButton = MainTab:Button({
+    Title = "وضعیت: آماده شلیک به NPCها",
+    Callback = function() 
+        print("Vitex Hub is running.")
+    end
 })
