@@ -1,151 +1,170 @@
--- تعریف سرویس‌های اصلی به صورت محلی
+-- سرویس‌های محلی
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
--- بارگذاری کتابخانه WindUI
+-- بارگذاری WindUI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- متغیرهای پایه و وضعیت‌ها
+-- متغیرهای کنترلی محلی
 local LocalPlayer = Players.LocalPlayer
 local SelectedPlayerName = ""
 local IsOrbiting = false
 local FastAttackEnabled = false
 
--- ریفرنس به ریموت‌های اصلی
-local NetFolder = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
-local RegisterHit = NetFolder:WaitForChild("RE/RegisterHit")
-local RegisterAttack = NetFolder:WaitForChild("RE/RegisterAttack")
+-- متغیرهای مدیریت فیزیک (برای توقف فوری)
+local currentOrbitTween
+local currentBv
+local currentNoclip
 
--- ایجاد پنجره اصلی
+-- ایجاد پنجره
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub - V3",
-    Icon   = "crosshair",
+    Title  = "Vitex Hub - V4",
+    Icon   = "target",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
 })
 
--- ایجاد تب اصلی
 local MainTab = Window:Tab({
-    Title = "Player Orbit & Kill",
-    Icon = "target",
+    Title = "PVP Control",
+    Icon = "swords",
 })
 
--- تابع محلی برای گرفتن لیست پلیرها
+-- تابع پاکسازی فیزیک و توقف حرکت
+local function cancelOrbit()
+    if currentOrbitTween then currentOrbitTween:Cancel() currentOrbitTween = nil end
+    if currentBv then currentBv:Destroy() currentBv = nil end
+    if currentNoclip then currentNoclip:Disconnect() currentNoclip = nil end
+    
+    local char = LocalPlayer.Character
+    if char then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") then part.CanCollide = true end
+        end
+    end
+end
+
+-- تابع گرفتن لیست پلیرها
 local function GetPlayerList()
     local List = {}
-    local AllPlayers = Players:GetPlayers()
-    for i = 1, #AllPlayers do
-        local p = AllPlayers[i]
-        if p ~= LocalPlayer then
-            table.insert(List, p.Name)
-        end
+    local allP = Players:GetPlayers()
+    for i = 1, #allP do
+        local p = allP[i]
+        if p ~= LocalPlayer then table.insert(List, p.Name) end
     end
     return List
 end
 
--- دراپ‌دان انتخاب پلیر
 local PlayerDropdown = MainTab:Dropdown({
     Title = "انتخاب هدف",
     Multi = false,
     Options = GetPlayerList(),
-    Callback = function(Selected)
-        SelectedPlayerName = Selected
-    end
+    Callback = function(s) SelectedPlayerName = s end
 })
 
--- دکمه رفرش لیست
-local RefreshBtn = MainTab:Button({
-    Title = "بروزرسانی لیست پلیرها",
-    Callback = function()
-        local NewList = GetPlayerList()
-        PlayerDropdown:Refresh(NewList)
-    end
+MainTab:Button({
+    Title = "رفرش لیست",
+    Callback = function() PlayerDropdown:Refresh(GetPlayerList()) end
 })
 
--- سیستم چرخش (Orbit) بالای سر پلیر
-task.spawn(function()
-    local Angle = 0
-    while true do
-        if IsOrbiting and SelectedPlayerName ~= "" then
-            local TargetPlayer = Players:FindFirstChild(SelectedPlayerName)
-            local TargetChar = TargetPlayer and TargetPlayer.Character
-            local TargetRoot = TargetChar and TargetChar:FindFirstChild("HumanoidRootPart")
+-- منطق تعقیب و چرخش (Orbit) با فیزیک پیشرفته
+local function startOrbit()
+    task.spawn(function()
+        local angle = 0
+        while IsOrbiting do
+            local targetPlayer = Players:FindFirstChild(SelectedPlayerName)
+            local targetChar = targetPlayer and targetPlayer.Character
+            local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
             
-            local MyChar = LocalPlayer.Character
-            local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
+            local myChar = LocalPlayer.Character
+            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 
-            if TargetRoot and MyRoot then
-                Angle = Angle + math.rad(10) -- سرعت چرخش دورانی
-                -- تنظیم موقعیت: چرخش با شعاع 12 و ارتفاع 18 واحد بالای سر هدف
-                local Offset = Vector3.new(math.cos(Angle) * 12, 18, math.sin(Angle) * 12)
-                local TargetPos = TargetRoot.Position + Offset
+            if targetRoot and myRoot then
+                -- فعال کردن Noclip
+                if not currentNoclip then
+                    currentNoclip = RunService.Stepped:Connect(function()
+                        if myChar then
+                            for _, p in pairs(myChar:GetDescendants()) do
+                                if p:IsA("BasePart") then p.CanCollide = false end
+                            end
+                        end
+                    end)
+                end
+
+                -- بی‌وزن کردن برای جلوگیری از افتادن
+                if not currentBv then
+                    currentBv = Instance.new("BodyVelocity")
+                    currentBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                    currentBv.Velocity = Vector3.new(0, 0, 0)
+                    currentBv.Parent = myRoot
+                end
+
+                angle = angle + math.rad(15) -- سرعت چرخش دورانی
+                local offset = Vector3.new(math.cos(angle) * 15, 20, math.sin(angle) * 15)
+                local targetPos = targetRoot.Position + offset
                 
-                local Distance = (MyRoot.Position - TargetPos).Magnitude
-                local Speed = 300 -- سرعت جابجایی (بالای 250)
-                local Time = Distance / Speed
-
-                local Info = TweenInfo.new(Time, Enum.EasingStyle.Linear)
-                local OrbitTween = TweenService:Create(MyRoot, Info, {CFrame = CFrame.new(TargetPos, TargetRoot.Position)})
-                OrbitTween:Play()
-                OrbitTween.Completed:Wait()
+                -- Tween به موقعیت جدید
+                local dist = (myRoot.Position - targetPos).Magnitude
+                local duration = dist / 300 -- سرعت 300
+                
+                currentOrbitTween = TweenService:Create(myRoot, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
+                    CFrame = CFrame.new(targetPos, targetRoot.Position)
+                })
+                currentOrbitTween:Play()
+                currentOrbitTween.Completed:Wait()
+            else
+                task.wait(0.5)
             end
+            task.wait()
         end
-        task.wait()
-    end
-end)
+        cancelOrbit()
+    end)
+end
 
--- تاگل چرخش
-local OrbitToggle = MainTab:Toggle({
-    Title = "چرخش و تعقیب (Orbit)",
+MainTab:Toggle({
+    Title = "تعقیب و چرخش (Advanced)",
     Value = false,
-    Callback = function(State)
-        IsOrbiting = State
-        if not State then
-            local MyRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if MyRoot then
-                local StopTween = TweenService:Create(MyRoot, TweenInfo.new(0.05), {CFrame = MyRoot.CFrame})
-                StopTween:Play()
-            end
+    Callback = function(state)
+        IsOrbiting = state
+        if state then
+            startOrbit()
+        else
+            cancelOrbit()
         end
     end
 })
 
--- سیستم حمله خودکار با ریموت جدید
-local AttackToggle = MainTab:Toggle({
+-- حمله خودکار با ریموت MeshPart شما
+MainTab:Toggle({
     Title = "حمله خودکار (Fast Attack)",
     Value = false,
-    Callback = function(State)
-        FastAttackEnabled = State
-        
-        if State then
+    Callback = function(state)
+        FastAttackEnabled = state
+        if state then
             task.spawn(function()
+                local regHit = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit")
+                local regAtk = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack")
+                
                 while FastAttackEnabled do
-                    local MyChar = LocalPlayer.Character
-                    local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
-                    local Tool = MyChar and MyChar:FindFirstChildOfClass("Tool")
-
-                    if MyRoot and Tool then
-                        local TargetPlayer = Players:FindFirstChild(SelectedPlayerName)
-                        local TargetChar = TargetPlayer and TargetPlayer.Character
-                        local TargetRoot = TargetChar and TargetChar:FindFirstChild("HumanoidRootPart")
+                    local char = LocalPlayer.Character
+                    local tool = char and char:FindFirstChildOfClass("Tool")
+                    if tool then
+                        local targetPlayer = Players:FindFirstChild(SelectedPlayerName)
+                        local targetRoot = targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart")
                         
-                        -- چک کردن فاصله (فقط اگر نزدیک هدف بودیم حمله کن)
-                        if TargetRoot and (TargetRoot.Position - MyRoot.Position).Magnitude < 100 then
-                            -- ۱. ریجستر کردن انیمیشن حمله
-                            RegisterAttack:FireServer(0.4)
-                            
-                            -- ۲. ارسال ریموت دمیج (دقیقاً طبق سورسی که دادی)
-                            local HitArgs = {
+                        if targetRoot and (targetRoot.Position - char.HumanoidRootPart.Position).Magnitude < 100 then
+                            regAtk:FireServer(0.4)
+                            local args = {
                                 [1] = Instance.new("MeshPart", nil),
                                 [2] = {},
                                 [4] = "694e8177"
                             }
-                            RegisterHit:FireServer(unpack(HitArgs))
+                            regHit:FireServer(unpack(args))
                         end
                     end
-                    task.wait(0.1) -- سرعت تکرار حمله
+                    task.wait(0.1)
                 end
             end)
         end
