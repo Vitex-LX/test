@@ -1,22 +1,26 @@
--- تعریف تمام سرویس‌ها به صورت کاملاً محلی
+-- تعریف سرویس‌های اصلی به صورت محلی
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
-local RunService = game:GetService("RunService")
 
--- بارگذاری کتابخانه
+-- بارگذاری کتابخانه WindUI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- متغیرهای پایه پلیر و وضعیت‌ها
+-- متغیرهای پایه و وضعیت‌ها
 local LocalPlayer = Players.LocalPlayer
 local SelectedPlayerName = ""
 local IsOrbiting = false
 local FastAttackEnabled = false
 
+-- ریفرنس به ریموت‌های اصلی
+local NetFolder = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net")
+local RegisterHit = NetFolder:WaitForChild("RE/RegisterHit")
+local RegisterAttack = NetFolder:WaitForChild("RE/RegisterAttack")
+
 -- ایجاد پنجره اصلی
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub - PVP Pro",
-    Icon   = "user-round-search",
+    Title  = "Vitex Hub - V3",
+    Icon   = "crosshair",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
@@ -24,7 +28,7 @@ local Window = WindUI:CreateWindow({
 
 -- ایجاد تب اصلی
 local MainTab = Window:Tab({
-    Title = "Player Attack",
+    Title = "Player Orbit & Kill",
     Icon = "target",
 })
 
@@ -41,9 +45,9 @@ local function GetPlayerList()
     return List
 end
 
--- ایجاد Dropdown برای انتخاب پلیر
+-- دراپ‌دان انتخاب پلیر
 local PlayerDropdown = MainTab:Dropdown({
-    Title = "انتخاب پلیر هدف",
+    Title = "انتخاب هدف",
     Multi = false,
     Options = GetPlayerList(),
     Callback = function(Selected)
@@ -51,16 +55,16 @@ local PlayerDropdown = MainTab:Dropdown({
     end
 })
 
--- دکمه رفرش لیست پلیرها
+-- دکمه رفرش لیست
 local RefreshBtn = MainTab:Button({
-    Title = "بروزرسانی لیست",
+    Title = "بروزرسانی لیست پلیرها",
     Callback = function()
         local NewList = GetPlayerList()
         PlayerDropdown:Refresh(NewList)
     end
 })
 
--- سیستم حرکت و چرخش (Orbit) با سرعت ثابت
+-- سیستم چرخش (Orbit) بالای سر پلیر
 task.spawn(function()
     local Angle = 0
     while true do
@@ -73,13 +77,13 @@ task.spawn(function()
             local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
 
             if TargetRoot and MyRoot then
-                Angle = Angle + math.rad(8) -- سرعت چرخش دور پلیر
+                Angle = Angle + math.rad(10) -- سرعت چرخش دورانی
+                -- تنظیم موقعیت: چرخش با شعاع 12 و ارتفاع 18 واحد بالای سر هدف
                 local Offset = Vector3.new(math.cos(Angle) * 12, 18, math.sin(Angle) * 12)
                 local TargetPos = TargetRoot.Position + Offset
                 
-                -- محاسبه فاصله و زمان برای سرعت 250+
                 local Distance = (MyRoot.Position - TargetPos).Magnitude
-                local Speed = 350 
+                local Speed = 300 -- سرعت جابجایی (بالای 250)
                 local Time = Distance / Speed
 
                 local Info = TweenInfo.new(Time, Enum.EasingStyle.Linear)
@@ -99,7 +103,6 @@ local OrbitToggle = MainTab:Toggle({
     Callback = function(State)
         IsOrbiting = State
         if not State then
-            -- توقف فوری جابجایی
             local MyRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if MyRoot then
                 local StopTween = TweenService:Create(MyRoot, TweenInfo.new(0.05), {CFrame = MyRoot.CFrame})
@@ -109,7 +112,7 @@ local OrbitToggle = MainTab:Toggle({
     end
 })
 
--- [ سیستم حمله خودکار طبق سورس ارسالی با رعایت local ]
+-- سیستم حمله خودکار با ریموت جدید
 local AttackToggle = MainTab:Toggle({
     Title = "حمله خودکار (Fast Attack)",
     Value = false,
@@ -118,53 +121,31 @@ local AttackToggle = MainTab:Toggle({
         
         if State then
             task.spawn(function()
-                -- توابع داخلی برای امنیت و سرعت
-                local function FindRemote(Parent, Keyword)
-                    if not Parent then return nil end
-                    local Descendants = Parent:GetDescendants()
-                    for i = 1, #Descendants do
-                        local v = Descendants[i]
-                        if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) and v.Name:lower():find(Keyword:lower()) then
-                            return v
-                        end
-                    end
-                    return nil
-                end
-
-                local NetFolder = ReplicatedStorage:FindFirstChild("Modules") and ReplicatedStorage.Modules:FindFirstChild("Net")
-                local RegAttack = FindRemote(NetFolder, "RegisterAttack")
-                local RegHit = FindRemote(NetFolder, "RegisterHit")
-                
-                local RemotesFolder = ReplicatedStorage:FindFirstChild("Remotes")
-                local Remote874 = nil
-                if RemotesFolder then
-                    local Children = RemotesFolder:GetChildren()
-                    for i = 1, #Children do
-                        if Children[i]:IsA("RemoteEvent") then Remote874 = Children[i] break end
-                    end
-                end
-
                 while FastAttackEnabled do
                     local MyChar = LocalPlayer.Character
                     local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
                     local Tool = MyChar and MyChar:FindFirstChildOfClass("Tool")
 
                     if MyRoot and Tool then
-                        -- پیدا کردن هدف
                         local TargetPlayer = Players:FindFirstChild(SelectedPlayerName)
                         local TargetChar = TargetPlayer and TargetPlayer.Character
-                        local TargetRoot = TargetChar and (TargetChar:FindFirstChild("HumanoidRootPart") or TargetChar:FindFirstChild("Head"))
+                        local TargetRoot = TargetChar and TargetChar:FindFirstChild("HumanoidRootPart")
                         
-                        if TargetRoot and (TargetRoot.Position - MyRoot.Position).Magnitude < 70 then
-                            if RegAttack then RegAttack:FireServer(0.4) end
-                            if RegHit then RegHit:FireServer(TargetRoot, {}, nil, "694ba46d") end
-                            if Remote874 then
-                                local Args = {[1] = "VA+VacmwpavLmp", [2] = 13064117, [3] = TargetRoot, [4] = {}, [6] = "869bada7"}
-                                Remote874:FireServer(unpack(Args))
-                            end
+                        -- چک کردن فاصله (فقط اگر نزدیک هدف بودیم حمله کن)
+                        if TargetRoot and (TargetRoot.Position - MyRoot.Position).Magnitude < 100 then
+                            -- ۱. ریجستر کردن انیمیشن حمله
+                            RegisterAttack:FireServer(0.4)
+                            
+                            -- ۲. ارسال ریموت دمیج (دقیقاً طبق سورسی که دادی)
+                            local HitArgs = {
+                                [1] = Instance.new("MeshPart", nil),
+                                [2] = {},
+                                [4] = "694e8177"
+                            }
+                            RegisterHit:FireServer(unpack(HitArgs))
                         end
                     end
-                    task.wait(0.1)
+                    task.wait(0.1) -- سرعت تکرار حمله
                 end
             end)
         end
