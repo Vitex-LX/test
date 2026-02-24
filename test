@@ -17,7 +17,7 @@ local FastAttackEnabled = false
 local currentOrbitConnection = nil
 local currentOrbitBv = nil
 
--- ایجاد پنجره اصلی
+-- ۱. ایجاد پنجره اصلی (Local)
 local Window = WindUI:CreateWindow({
     Title  = "Vitex Hub - Final Boss",
     Icon   = "shield-check",
@@ -26,6 +26,7 @@ local Window = WindUI:CreateWindow({
     Acrylic = true,
 })
 
+-- ۲. ایجاد تب اصلی (Local)
 local MainTab = Window:Tab({
     Title = "Combat & Orbit",
     Icon = "swords",
@@ -42,6 +43,7 @@ local function GetPlayerList()
     return list
 end
 
+-- ۳. ایجاد دراپ‌دان (Local)
 local PlayerDrop = MainTab:Dropdown({
     Title = "انتخاب هدف",
     Multi = false,
@@ -49,18 +51,21 @@ local PlayerDrop = MainTab:Dropdown({
     Callback = function(v) SelectedPlayerName = v end
 })
 
-MainTab:Button({
+-- ۴. ایجاد دکمه رفرش (Local)
+local RefreshButton = MainTab:Button({
     Title = "بروزرسانی لیست",
     Callback = function() PlayerDrop:Refresh(GetPlayerList()) end
 })
 
---- [ بخش حرکت هوشمند و نرم (Smooth Orbit) ] ---
+--- [ بخش حرکت هوشمند و نرم ] ---
 local function StopOrbit()
     if currentOrbitConnection then currentOrbitConnection:Disconnect() currentOrbitConnection = nil end
     if currentOrbitBv then currentOrbitBv:Destroy() currentOrbitBv = nil end
     local char = lp.Character
     if char then
-        for _, part in pairs(char:GetDescendants()) do
+        local descendants = char:GetDescendants()
+        for i = 1, #descendants do
+            local part = descendants[i]
             if part:IsA("BasePart") then part.CanCollide = true end
         end
     end
@@ -78,19 +83,21 @@ local function StartOrbit()
         local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
 
         if tRoot and myRoot then
-            -- Noclip
-            for _, v in pairs(myChar:GetDescendants()) do
+            local myDescendants = myChar:GetDescendants()
+            for i = 1, #myDescendants do
+                local v = myDescendants[i]
                 if v:IsA("BasePart") then v.CanCollide = false end
             end
-            -- Anti-Gravity
+            
             if not currentOrbitBv or currentOrbitBv.Parent ~= myRoot then
                 if currentOrbitBv then currentOrbitBv:Destroy() end
-                currentOrbitBv = Instance.new("BodyVelocity")
-                currentOrbitBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                currentOrbitBv.Velocity = Vector3.new(0, 0, 0)
-                currentOrbitBv.Parent = myRoot
+                local newBv = Instance.new("BodyVelocity")
+                newBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                newBv.Velocity = Vector3.new(0, 0, 0)
+                newBv.Parent = myRoot
+                currentOrbitBv = newBv
             end
-            -- Calculation
+            
             angle = angle + (deltaTime * 7)
             local offset = Vector3.new(math.cos(angle) * 14, 18, math.sin(angle) * 14)
             myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.new(tRoot.Position + offset, tRoot.Position), 0.25)
@@ -98,7 +105,8 @@ local function StartOrbit()
     end)
 end
 
-MainTab:Toggle({
+-- ۵. ایجاد تاگل چرخش (Local)
+local OrbitToggle = MainTab:Toggle({
     Title = "تعقیب هوشمند (Smooth Orbit)",
     Value = false,
     Callback = function(state)
@@ -108,7 +116,8 @@ MainTab:Toggle({
 })
 
 --- [ بخش حمله خودکار با ریموت‌های داینامیک ] ---
-MainTab:Toggle({
+-- ۶. ایجاد تاگل حمله (Local)
+local AttackToggle = MainTab:Toggle({
     Title = "حمله خودکار (Dynamic Attack)",
     Value = false,
     Callback = function(state)
@@ -116,7 +125,6 @@ MainTab:Toggle({
         
         if state then
             task.spawn(function()
-                -- توابع داخلی جستجو (Local)
                 local function findRemote(parent, keyword)
                     if not parent then return nil end
                     local des = parent:GetDescendants()
@@ -148,8 +156,7 @@ MainTab:Toggle({
                 local rAttack, rHit, r874
 
                 while FastAttackEnabled do
-                    pcall(function()
-                        -- رفرش ریموت‌ها هر ۵ ثانیه
+                    local status, result = pcall(function()
                         if tick() - lastRefresh > 5 then
                             rAttack, rHit, r874 = getRemoteWithFallback()
                             lastRefresh = tick()
@@ -160,20 +167,15 @@ MainTab:Toggle({
                         local tool = char and char:FindFirstChildOfClass("Tool")
 
                         if root and tool then
-                            -- حمله به NPC ها و پلیر هدف
                             local function DamageTarget(targetModel)
                                 local tRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
                                 local hum = targetModel:FindFirstChild("Humanoid")
                                 if tRoot and hum and hum.Health > 0 and (tRoot.Position - root.Position).Magnitude < 70 then
-                                    
                                     if rAttack then rAttack:FireServer(0.4) end
-                                    
-                                    -- استفاده از ریموت با MeshPart (دقیقاً طبق سورست)
                                     if rHit then
                                         local hitArgs = {[1] = Instance.new("MeshPart", nil), [2] = {}, [4] = "694ba46d"}
                                         rHit:FireServer(unpack(hitArgs))
                                     end
-
                                     if r874 then
                                         local args874 = {"VA+VacmwpavLmp", 13064117, tRoot, {}, "869bada7"}
                                         r874:FireServer(unpack(args874))
@@ -181,14 +183,12 @@ MainTab:Toggle({
                                 end
                             end
 
-                            -- حمله به انیمیشن‌ها (NPCs)
                             local enemies = workspace:FindFirstChild("Enemies")
                             if enemies then
                                 local eChildren = enemies:GetChildren()
                                 for i = 1, #eChildren do DamageTarget(eChildren[i]) end
                             end
 
-                            -- حمله به پلیر انتخاب شده (Target)
                             local targetPlr = Players:FindFirstChild(SelectedPlayerName)
                             if targetPlr and targetPlr.Character then
                                 DamageTarget(targetPlr.Character)
