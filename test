@@ -1,170 +1,151 @@
--- سرویس‌های محلی
+-- سرویس‌های محلی برای حداکثر سرعت
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
 
--- بارگذاری WindUI
+-- بارگذاری کتابخانه
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- متغیرهای کنترلی محلی
+-- متغیرهای محلی پایه
 local LocalPlayer = Players.LocalPlayer
 local SelectedPlayerName = ""
 local IsOrbiting = false
 local FastAttackEnabled = false
 
--- متغیرهای مدیریت فیزیک (برای توقف فوری)
-local currentOrbitTween
-local currentBv
-local currentNoclip
+-- متغیرهای فیزیک برای مدیریت حرکت نرم
+local OrbitConnection = nil
+local OrbitBv = nil
 
 -- ایجاد پنجره
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub - V4",
-    Icon   = "target",
+    Title  = "Vitex Hub - Smooth PVP",
+    Icon   = "zap",
     Author = "by Vitex",
-    Theme  = "Violet",
+    Theme = "Violet",
     Acrylic = true,
 })
 
 local MainTab = Window:Tab({
-    Title = "PVP Control",
+    Title = "PVP Smooth",
     Icon = "swords",
 })
 
--- تابع پاکسازی فیزیک و توقف حرکت
-local function cancelOrbit()
-    if currentOrbitTween then currentOrbitTween:Cancel() currentOrbitTween = nil end
-    if currentBv then currentBv:Destroy() currentBv = nil end
-    if currentNoclip then currentNoclip:Disconnect() currentNoclip = nil end
+-- تابع پاکسازی (توقف آنی)
+local function StopOrbit()
+    if OrbitConnection then OrbitConnection:Disconnect() OrbitConnection = nil end
+    if OrbitBv then OrbitBv:Destroy() OrbitBv = nil end
     
-    local char = LocalPlayer.Character
-    if char then
-        for _, part in pairs(char:GetDescendants()) do
-            if part:IsA("BasePart") then part.CanCollide = true end
+    local MyChar = LocalPlayer.Character
+    if MyChar then
+        for _, v in pairs(MyChar:GetDescendants()) do
+            if v:IsA("BasePart") then v.CanCollide = true end
         end
     end
 end
 
--- تابع گرفتن لیست پلیرها
-local function GetPlayerList()
+-- لیست پلیرها
+local function UpdateList()
     local List = {}
-    local allP = Players:GetPlayers()
-    for i = 1, #allP do
-        local p = allP[i]
+    local AllP = Players:GetPlayers()
+    for i = 1, #AllP do
+        local p = AllP[i]
         if p ~= LocalPlayer then table.insert(List, p.Name) end
     end
     return List
 end
 
-local PlayerDropdown = MainTab:Dropdown({
+local PlayerDrop = MainTab:Dropdown({
     Title = "انتخاب هدف",
     Multi = false,
-    Options = GetPlayerList(),
-    Callback = function(s) SelectedPlayerName = s end
+    Options = UpdateList(),
+    Callback = function(v) SelectedPlayerName = v end
 })
 
 MainTab:Button({
-    Title = "رفرش لیست",
-    Callback = function() PlayerDropdown:Refresh(GetPlayerList()) end
+    Title = "آپدیت لیست",
+    Callback = function() PlayerDrop:Refresh(UpdateList()) end
 })
 
--- منطق تعقیب و چرخش (Orbit) با فیزیک پیشرفته
-local function startOrbit()
-    task.spawn(function()
-        local angle = 0
-        while IsOrbiting do
-            local targetPlayer = Players:FindFirstChild(SelectedPlayerName)
-            local targetChar = targetPlayer and targetPlayer.Character
-            local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-            
-            local myChar = LocalPlayer.Character
-            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-
-            if targetRoot and myRoot then
-                -- فعال کردن Noclip
-                if not currentNoclip then
-                    currentNoclip = RunService.Stepped:Connect(function()
-                        if myChar then
-                            for _, p in pairs(myChar:GetDescendants()) do
-                                if p:IsA("BasePart") then p.CanCollide = false end
-                            end
-                        end
-                    end)
-                end
-
-                -- بی‌وزن کردن برای جلوگیری از افتادن
-                if not currentBv then
-                    currentBv = Instance.new("BodyVelocity")
-                    currentBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-                    currentBv.Velocity = Vector3.new(0, 0, 0)
-                    currentBv.Parent = myRoot
-                end
-
-                angle = angle + math.rad(15) -- سرعت چرخش دورانی
-                local offset = Vector3.new(math.cos(angle) * 15, 20, math.sin(angle) * 15)
-                local targetPos = targetRoot.Position + offset
-                
-                -- Tween به موقعیت جدید
-                local dist = (myRoot.Position - targetPos).Magnitude
-                local duration = dist / 300 -- سرعت 300
-                
-                currentOrbitTween = TweenService:Create(myRoot, TweenInfo.new(duration, Enum.EasingStyle.Linear), {
-                    CFrame = CFrame.new(targetPos, targetRoot.Position)
-                })
-                currentOrbitTween:Play()
-                currentOrbitTween.Completed:Wait()
-            else
-                task.wait(0.5)
-            end
-            task.wait()
+-- منطق حرکت نرم و مستقیم (Real-time Orbit)
+local function StartOrbit()
+    StopOrbit() -- اطمینان از نبود اتصال قبلی
+    
+    local Angle = 0
+    local Speed = 300 -- سرعت جابجایی
+    
+    OrbitConnection = RunService.Stepped:Connect(function(_, DeltaTime)
+        if not IsOrbiting or SelectedPlayerName == "" then 
+            StopOrbit()
+            return 
         end
-        cancelOrbit()
+        
+        local TargetPlayer = Players:FindFirstChild(SelectedPlayerName)
+        local TargetRoot = TargetPlayer and TargetPlayer.Character and TargetPlayer.Character:FindFirstChild("HumanoidRootPart")
+        local MyChar = LocalPlayer.Character
+        local MyRoot = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
+        
+        if TargetRoot and MyRoot then
+            -- نول کلیپ دائم
+            for _, p in pairs(MyChar:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
+            end
+            
+            -- بی وزنی
+            if not OrbitBv or OrbitBv.Parent ~= MyRoot then
+                if OrbitBv then OrbitBv:Destroy() end
+                OrbitBv = Instance.new("BodyVelocity")
+                OrbitBv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+                OrbitBv.Velocity = Vector3.new(0, 0, 0)
+                OrbitBv.Parent = MyRoot
+            end
+            
+            -- محاسبه چرخش در لحظه
+            Angle = Angle + (DeltaTime * 5) -- سرعت دوران دور پلیر
+            local Offset = Vector3.new(math.cos(Angle) * 15, 20, math.sin(Angle) * 15)
+            local TargetPos = TargetRoot.Position + Offset
+            
+            -- حرکت مستقیم و نرم به جای Tween (بدون تیکه تیکه شدن)
+            MyRoot.CFrame = MyRoot.CFrame:Lerp(CFrame.new(TargetPos, TargetRoot.Position), 0.2)
+        else
+            StopOrbit()
+        end
     end)
 end
 
 MainTab:Toggle({
-    Title = "تعقیب و چرخش (Advanced)",
+    Title = "تعقیب نرم (Real-time Orbit)",
     Value = false,
-    Callback = function(state)
-        IsOrbiting = state
-        if state then
-            startOrbit()
-        else
-            cancelOrbit()
-        end
+    Callback = function(State)
+        IsOrbiting = State
+        if State then StartOrbit() else StopOrbit() end
     end
 })
 
--- حمله خودکار با ریموت MeshPart شما
+-- حمله خودکار با ریموت فیکس شده
 MainTab:Toggle({
     Title = "حمله خودکار (Fast Attack)",
     Value = false,
-    Callback = function(state)
-        FastAttackEnabled = state
-        if state then
+    Callback = function(State)
+        FastAttackEnabled = State
+        if State then
             task.spawn(function()
-                local regHit = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit")
-                local regAtk = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack")
+                local RegHit = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterHit")
+                local RegAtk = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Net"):WaitForChild("RE/RegisterAttack")
                 
                 while FastAttackEnabled do
-                    local char = LocalPlayer.Character
-                    local tool = char and char:FindFirstChildOfClass("Tool")
-                    if tool then
-                        local targetPlayer = Players:FindFirstChild(SelectedPlayerName)
-                        local targetRoot = targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+                    local Char = LocalPlayer.Character
+                    local Tool = Char and Char:FindFirstChildOfClass("Tool")
+                    if Tool then
+                        local TargetP = Players:FindFirstChild(SelectedPlayerName)
+                        local TRoot = TargetP and TargetP.Character and TargetP.Character:FindFirstChild("HumanoidRootPart")
                         
-                        if targetRoot and (targetRoot.Position - char.HumanoidRootPart.Position).Magnitude < 100 then
-                            regAtk:FireServer(0.4)
-                            local args = {
-                                [1] = Instance.new("MeshPart", nil),
-                                [2] = {},
-                                [4] = "694e8177"
-                            }
-                            regHit:FireServer(unpack(args))
+                        if TRoot and (TRoot.Position - Char.HumanoidRootPart.Position).Magnitude < 100 then
+                            RegAtk:FireServer(0.4)
+                            local Args = {[1] = Instance.new("MeshPart", nil), [2] = {}, [4] = "694e8177"}
+                            RegHit:FireServer(unpack(Args))
                         end
                     end
-                    task.wait(0.1)
+                    task.wait(0.05) -- سرعت حمله بالا
                 end
             end)
         end
