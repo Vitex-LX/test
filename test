@@ -1,4 +1,4 @@
--- سرویس‌های اصلی
+-- تعریف سرویس‌های اصلی (Local)
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -6,37 +6,37 @@ local RunService = game:GetService("RunService")
 -- بارگذاری کتابخانه WindUI
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
--- متغیرهای کنترلی
+-- متغیرهای کنترلی اسکریپت
 local lp = Players.LocalPlayer
 local SelectedPlayerName = ""
 local IsOrbiting = false
 local FastAttackEnabled = false
 
--- مدیریت فیزیک
+-- مدیریت فیزیک و اتصالات
 local currentOrbitConnection = nil
 local currentOrbitBv = nil
 
--- ۱. ایجاد پنجره (Local)
+-- ۱. ایجاد پنجره اصلی (Local)
 local Window = WindUI:CreateWindow({
-    Title  = "Vitex Hub - Precise Combat",
-    Icon   = "target",
+    Title  = "Vitex Hub - Anti-Seat V3",
+    Icon   = "zap",
     Author = "by Vitex",
     Theme  = "Violet",
     Acrylic = true,
 })
 
--- ۲. ایجاد تب (Local)
+-- ۲. ایجاد تب اصلی (Local)
 local MainTab = Window:Tab({
-    Title = "PVP Precise",
-    Icon = "crosshair",
+    Title = "Combat & Speed",
+    Icon = "swords",
 })
 
--- تابع لیست پلیرها
+-- تابع محلی برای گرفتن لیست پلیرها
 local function GetPlayerList()
     local list = {}
-    local allP = Players:GetPlayers()
-    for i = 1, #allP do
-        local p = allP[i]
+    local allPlayers = Players:GetPlayers()
+    for i = 1, #allPlayers do
+        local p = allPlayers[i]
         if p ~= lp then table.insert(list, p.Name) end
     end
     return list
@@ -44,34 +44,44 @@ end
 
 -- ۳. ایجاد دراپ‌دان (Local)
 local PlayerDrop = MainTab:Dropdown({
-    Title = "انتخاب هدف (Target)",
+    Title = "انتخاب هدف",
     Multi = false,
     Options = GetPlayerList(),
     Callback = function(v) SelectedPlayerName = v end
 })
 
--- ۴. دکمه رفرش (Local)
+-- ۴. ایجاد دکمه رفرش لیست (Local)
 local RefreshBtn = MainTab:Button({
-    Title = "آپدیت لیست",
-    Callback = function() PlayerDrop:Refresh(GetPlayerList()) end
+    Title = "بروزرسانی لیست پلیرها",
+    Callback = function() 
+        local newList = GetPlayerList()
+        PlayerDrop:Refresh(newList) 
+    end
 })
 
--- تابع توقف حرکت
+-- تابع پاکسازی فیزیک و حرکت
 local function StopMovement()
-    if currentOrbitConnection then currentOrbitConnection:Disconnect() currentOrbitConnection = nil end
-    if currentOrbitBv then currentOrbitBv:Destroy() currentOrbitBv = nil end
+    if currentOrbitConnection then 
+        currentOrbitConnection:Disconnect() 
+        currentOrbitConnection = nil 
+    end
+    if currentOrbitBv then 
+        currentOrbitBv:Destroy() 
+        currentOrbitBv = nil 
+    end
     local char = lp.Character
     if char then
         local des = char:GetDescendants()
         for i = 1, #des do
-            if des[i]:IsA("BasePart") then des[i].CanCollide = true end
+            local p = des[i]
+            if p:IsA("BasePart") then p.CanCollide = true end
         end
     end
 end
 
--- ۵. تاگل تعقیب چسبیده و دقیق (Local)
+-- ۵. تاگل تعقیب فوق سریع (Anti-Seat & Speed 250)
 local OrbitToggle = MainTab:Toggle({
-    Title = "تعقیب چسبیده (Head-Level Orbit)",
+    Title = "تعقیب چسبیده (Speed 250)",
     Value = false,
     Callback = function(state)
         IsOrbiting = state
@@ -83,19 +93,27 @@ local OrbitToggle = MainTab:Toggle({
         local angle = 0
         currentOrbitConnection = RunService.Stepped:Connect(function(_, deltaTime)
             local target = Players:FindFirstChild(SelectedPlayerName)
+            local char = lp.Character
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
             local tRoot = target and target.Character and target.Character:FindFirstChild("HumanoidRootPart")
             local tHead = target and target.Character and target.Character:FindFirstChild("Head")
-            local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-            local myChar = lp.Character
+            local myRoot = char and char:FindFirstChild("HumanoidRootPart")
 
-            if tRoot and tHead and myRoot then
-                -- Noclip
-                local parts = myChar:GetDescendants()
-                for i = 1, #parts do
-                    if parts[i]:IsA("BasePart") then parts[i].CanCollide = false end
+            if tRoot and tHead and myRoot and hum then
+                -- [بخش آنتی-سیت] - اگه نشست، بلندش کن
+                if hum.Sit then 
+                    hum.Sit = false 
+                    hum.Jump = true 
                 end
 
-                -- Anti-Gravity
+                -- Noclip فعال
+                local parts = char:GetDescendants()
+                for i = 1, #parts do
+                    local p = parts[i]
+                    if p:IsA("BasePart") then p.CanCollide = false end
+                end
+
+                -- ایجاد حالت بی‌وزنی
                 if not currentOrbitBv or currentOrbitBv.Parent ~= myRoot then
                     if currentOrbitBv then currentOrbitBv:Destroy() end
                     local bv = Instance.new("BodyVelocity")
@@ -105,15 +123,16 @@ local OrbitToggle = MainTab:Toggle({
                     currentOrbitBv = bv
                 end
 
-                -- تنظیم موقعیت: نزدیک‌تر و در سطح سر (Y = 1.5)
-                angle = angle + (deltaTime * 8)
-                local radius = 6 -- خیلی نزدیک
-                local heightOffset = 1.5 -- دقیقاً هم‌سطح سر و گردن
-                local offset = Vector3.new(math.cos(angle) * radius, heightOffset, math.sin(angle) * radius)
+                -- محاسبات سرعت ۲۵۰ و موقعیت سر
+                angle = angle + (deltaTime * 12)
+                local radius = 4
+                local heightOffset = 0.5 
                 
-                -- نگاه کردن مستقیم به سر پلیر
+                local offset = Vector3.new(math.cos(angle) * radius, heightOffset, math.sin(angle) * radius)
                 local targetPos = tRoot.Position + offset
-                myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.new(targetPos, tHead.Position), 0.3)
+                
+                -- تلپورت با ضریب ۰.۹
+                myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.new(targetPos, tHead.Position), 0.9)
             else
                 StopMovement()
             end
@@ -121,23 +140,24 @@ local OrbitToggle = MainTab:Toggle({
     end
 })
 
--- ۶. تاگل حمله داینامیک (Local)
+-- ۶. تاگل حمله خودکار داینامیک (Local)
 local AttackToggle = MainTab:Toggle({
-    Title = "حمله خودکار (Dynamic)",
+    Title = "حمله خودکار (Dynamic AOE)",
     Value = false,
     Callback = function(state)
         FastAttackEnabled = state
         if state then
             task.spawn(function()
-                -- توابع جستجوی ریموت
                 local function findRemote(parent, keyword)
                     if not parent then return nil end
                     local des = parent:GetDescendants()
                     for i = 1, #des do
-                        if (des[i]:IsA("RemoteEvent") or des[i]:IsA("RemoteFunction")) and des[i].Name:lower():find(keyword:lower()) then
-                            return des[i]
+                        local v = des[i]
+                        if (v:IsA("RemoteEvent") or v:IsA("RemoteFunction")) and v.Name:lower():find(keyword:lower()) then
+                            return v
                         end
                     end
+                    return nil
                 end
 
                 local function getRemotes()
@@ -166,21 +186,23 @@ local AttackToggle = MainTab:Toggle({
                             local function Damage(targetModel)
                                 local tRoot = targetModel:FindFirstChild("HumanoidRootPart") or targetModel:FindFirstChild("Head")
                                 local hum = targetModel:FindFirstChild("Humanoid")
-                                if tRoot and hum and hum.Health > 0 and (tRoot.Position - root.Position).Magnitude < 60 then
+                                if tRoot and hum and hum.Health > 0 and (tRoot.Position - root.Position).Magnitude < 70 then
                                     if rHit then rHit:FireServer(tRoot, {}, nil, "694ba46d") end
                                     if r874 then r874:FireServer("VA+VacmwpavLmp", 13064117, tRoot, {}, "869bada7") end
                                 end
                             end
 
-                            -- اتک به NPC
                             local enemies = workspace:FindFirstChild("Enemies")
                             if enemies then
                                 local eList = enemies:GetChildren()
                                 for i = 1, #eList do Damage(eList[i]) end
                             end
-                            -- اتک به پلیر هدف
-                            local targetPlr = Players:FindFirstChild(SelectedPlayerName)
-                            if targetPlr and targetPlr.Character then Damage(targetPlr.Character) end
+
+                            local allP = Players:GetPlayers()
+                            for i = 1, #allP do
+                                local p = allP[i]
+                                if p ~= lp and p.Character then Damage(p.Character) end
+                            end
                         end
                     end)
                     task.wait(0.1)
